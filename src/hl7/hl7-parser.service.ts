@@ -10,6 +10,24 @@ export interface Hl7Message {
   raw: string;
 }
 
+export interface ParsedMdmDocument {
+  messageType: string; // MDM^T02, MDM^T04, MDM^T08
+  patientId?: string;
+  patientName?: { lastName: string; firstName: string };
+  document: {
+    uniqueId?: string;
+    type?: string;         // Document type (e.g. DS=Discharge Summary, CN=Consultation Note)
+    typeName?: string;     // Human-readable document type name
+    activityStatus?: string; // AU=Authenticated, DI=Dictated, etc.
+    originationDateTime?: string;
+    author?: string;
+    transcriptionist?: string;
+    title?: string;
+  };
+  content: string;        // The actual document text content
+  contentSegments: string[]; // Individual OBX text segments
+}
+
 export interface ParsedLabResult {
   patientId?: string;
   patientName?: { lastName: string; firstName: string };
@@ -48,9 +66,10 @@ export class Hl7ParserService {
   }
 
   getField(segment: Hl7Segment, index: number): string {
-    // HL7 fields are 1-indexed, but MSH is special (field separator is field 1)
+    // MSH is special: field separator | is MSH-1, so MSH-N = fields[N-1]
+    // All other segments: SEG-N = fields[N]
     if (segment.name === 'MSH') {
-      return segment.fields[index] || '';
+      return segment.fields[index - 1] || '';
     }
     return segment.fields[index] || '';
   }
@@ -96,5 +115,112 @@ export class Hl7ParserService {
     }
 
     return result;
+  }
+
+  // Detect HL7 message type from MSH segment
+  getMessageType(raw: string): { type: string; trigger: string; full: string } {
+    const msg = this.parse(raw);
+    const msh = this.getSegment(msg, 'MSH');
+    if (!msh) return { type: '', trigger: '', full: '' };
+    const msgTypeField = this.getField(msh, 9);
+    const type = this.getComponent(msgTypeField, 1);    // e.g. MDM, ORU, ORM
+    const trigger = this.getComponent(msgTypeField, 2);  // e.g. T02, R01, O01
+    return { type, trigger, full: `${type}^${trigger}` };
+  }
+
+  // Parse MDM (Medical Document Management) message
+  parseMdmDocument(raw: string): ParsedMdmDocument {
+    const msg = this.parse(raw);
+    const msh = this.getSegment(msg, 'MSH');
+    const pid = this.getSegment(msg, 'PID');
+    const txa = this.getSegment(msg, 'TXA');
+    const obxSegments = this.getSegments(msg, 'OBX');
+
+    const msgTypeField = msh ? this.getField(msh, 9) : '';
+    const messageType = this.getComponent(msgTypeField, 1) + '^' + this.getComponent(msgTypeField, 2);
+
+    const result: ParsedMdmDocument = {
+      messageType,
+      document: {},
+      content: '',
+      contentSegments: [],
+    };
+
+    // PID — Patient Identification
+    if (pid) {
+      const patientIdField = this.getField(pid, 3);
+      result.patientId = this.getComponent(patientIdField, 1);
+      const nameField = this.getField(pid, 5);
+      result.patientName = {
+        lastName: this.getComponent(nameField, 1),
+        firstName: this.getComponent(nameField, 2),
+      };
+    }
+
+    // TXA — Transcription Document Header
+    if (txa) {
+      result.document = {
+        uniqueId: this.getField(txa, 12),
+        type: this.getField(txa, 2),
+        typeName: this.getComponent(this.getField(txa, 2), 2) || this.mapDocumentType(this.getField(txa, 2)),
+        activityStatus: this.getField(txa, 17),
+        originationDateTime: this.getField(txa, 4),
+        author: this.getComponent(this.getField(txa, 5), 1)
+          ? this.getComponent(this.getField(txa, 5), 2) + ' ' + this.getComponent(this.getField(txa, 5), 1)
+          : this.getField(txa, 5),
+        transcriptionist: this.getField(txa, 11),
+        title: this.getField(txa, 16) || this.getComponent(this.getField(txa, 2), 2) || undefined,
+      };
+    }
+
+    // OBX — Document Content (text segments)
+    for (const obx of obxSegments) {
+      const valueType = this.getField(obx, 2); // TX=text, FT=formatted text, ED=encapsulated data
+      let text = '';
+
+      if (valueType === 'TX' || valueType === 'FT' || valueType === 'ST') {
+        text = this.getField(obx, 5);
+      } else if (valueType === 'ED') {
+        // Encapsulated data: encoding^type^data
+        const edField = this.getField(obx, 5);
+        const encoding = this.getComponent(edField, 3);
+        const data = this.getComponent(edField, 5) || this.getComponent(edField, 4);
+        if (encoding === 'Base64' && data) {
+          try { text = Buffer.from(data, 'base64').toString('utf-8'); } catch { text = data; }
+        } else {
+          text = data || edField;
+        }
+      } else {
+        text = this.getField(obx, 5);
+      }
+
+      if (text) {
+        // HL7 uses \.br\ for line breaks in formatted text
+        text = text.replace(/\\\.br\\/g, '\n').replace(/\\R\\/g, '\n');
+        result.contentSegments.push(text);
+      }
+    }
+
+    result.content = result.contentSegments.join('\n');
+
+    return result;
+  }
+
+  // Map common document type codes to names
+  private mapDocumentType(code: string): string {
+    const types: Record<string, string> = {
+      'DS': 'Discharge Summary',
+      'HP': 'History & Physical',
+      'OP': 'Operative Report',
+      'CN': 'Consultation Note',
+      'PN': 'Progress Note',
+      'ED': 'Emergency Department Note',
+      'SR': 'Surgical Report',
+      'PR': 'Pathology Report',
+      'RA': 'Radiology Report',
+      'LT': 'Letter',
+      'TX': 'Transfer Summary',
+    };
+    return types[code] || code;
   }
 }

@@ -29,9 +29,9 @@ describe('Hl7ParserService', () => {
       const msg = service.parse(sampleHl7);
       const msh = service.getSegment(msg, 'MSH');
       expect(msh).toBeDefined();
-      // After split on |, MSH fields[0]='MSH', fields[1]='^~\&', fields[2]='LAB'
-      expect(service.getField(msh!, 1)).toBe('^~\\&');
-      expect(service.getField(msh!, 2)).toBe('LAB');
+      // MSH-1 is field separator |, MSH-2 is encoding chars, MSH-3 is sending app
+      expect(service.getField(msh!, 2)).toBe('^~\\&');
+      expect(service.getField(msh!, 3)).toBe('LAB');
     });
   });
 
