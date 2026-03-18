@@ -304,6 +304,8 @@
                 <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#conn-tab-clients">Registered Clients</a></li>
                 <li class="nav-item"><a class="nav-link" id="conn-tab-register-link" data-toggle="tab" href="#conn-tab-register">Register New Client</a></li>
                 <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#conn-tab-tokens">Token Tools</a></li>
+                <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#conn-tab-labproviders">Lab Providers</a></li>
+                <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#conn-tab-webhooks">Webhooks</a></li>
               </ul>
               <div class="tab-content">
                 <!-- Client List Tab -->
@@ -438,6 +440,105 @@ Authorization: Bearer &lt;token&gt;</pre>
                           </div>
                           <button class="btn btn-sm btn-success" onclick="testGenerateToken()"><i class="fas fa-play"></i> Generate Token</button>
                           <div id="testTokenResult" class="mt-2"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Lab Providers Tab -->
+                <div class="tab-pane fade" id="conn-tab-labproviders">
+                  <div class="row">
+                    <div class="col-md-7">
+                      <div class="card table-card">
+                        <div class="card-header bg-white"><strong><i class="fas fa-microscope"></i> Lab System Connections</strong></div>
+                        <div class="card-body p-0">
+                          <table class="table table-hover mb-0">
+                            <thead class="thead-light"><tr><th>Name</th><th>Protocol</th><th>Destination</th><th>Status</th><th></th></tr></thead>
+                            <tbody id="labProviderList"></tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-5">
+                      <div class="card">
+                        <div class="card-header bg-white"><strong>Add Lab Provider</strong></div>
+                        <div class="card-body">
+                          <form id="labProviderForm">
+                            <div class="form-group"><label>Name *</label><input type="text" class="form-control form-control-sm" name="name" placeholder="e.g. Quest Diagnostics" required></div>
+                            <div class="form-group"><label>Protocol *</label>
+                              <select class="form-control form-control-sm" name="protocol" onchange="toggleProviderFields(this.value)">
+                                <option value="MLLP">MLLP (TCP/IP)</option>
+                                <option value="HTTP">HTTP (REST)</option>
+                                <option value="DL">Download Only (no outbound)</option>
+                              </select>
+                            </div>
+                            <div id="mllpFields">
+                              <div class="row">
+                                <div class="col-md-8 form-group"><label>Host</label><input type="text" class="form-control form-control-sm" name="host" placeholder="lab.example.com"></div>
+                                <div class="col-md-4 form-group"><label>Port</label><input type="number" class="form-control form-control-sm" name="port" placeholder="2575"></div>
+                              </div>
+                            </div>
+                            <div id="httpFields" style="display:none">
+                              <div class="form-group"><label>URL</label><input type="text" class="form-control form-control-sm" name="httpUrl" placeholder="https://lab-api.example.com/hl7"></div>
+                            </div>
+                            <div class="row">
+                              <div class="col-md-6 form-group"><label>Sending App</label><input type="text" class="form-control form-control-sm" name="sendApp" value="OPENEMR-TS"></div>
+                              <div class="col-md-6 form-group"><label>Sending Facility</label><input type="text" class="form-control form-control-sm" name="sendFacility" value="CLINIC"></div>
+                            </div>
+                            <div class="row">
+                              <div class="col-md-6 form-group"><label>Receiving App</label><input type="text" class="form-control form-control-sm" name="recvApp" placeholder="LAB"></div>
+                              <div class="col-md-6 form-group"><label>Receiving Facility</label><input type="text" class="form-control form-control-sm" name="recvFacility" placeholder="LAB"></div>
+                            </div>
+                            <button type="button" class="btn btn-primary btn-sm" onclick="saveLabProvider()"><i class="fas fa-save"></i> Save Provider</button>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Webhooks Tab -->
+                <div class="tab-pane fade" id="conn-tab-webhooks">
+                  <div class="row">
+                    <div class="col-md-7">
+                      <div class="card table-card mb-3">
+                        <div class="card-header bg-white"><strong><i class="fas fa-bell"></i> Registered Webhooks</strong></div>
+                        <div class="card-body p-0">
+                          <table class="table table-hover mb-0">
+                            <thead class="thead-light"><tr><th>Name</th><th>URL</th><th>Events</th><th>Status</th><th></th></tr></thead>
+                            <tbody id="webhookList"></tbody>
+                          </table>
+                        </div>
+                      </div>
+                      <div class="card table-card">
+                        <div class="card-header bg-white"><strong>Delivery Log</strong> <small class="text-muted">(last 20)</small></div>
+                        <div class="card-body p-0">
+                          <table class="table table-sm mb-0">
+                            <thead class="thead-light"><tr><th>Time</th><th>Event</th><th>URL</th><th>Status</th><th>Duration</th></tr></thead>
+                            <tbody id="webhookLogList"></tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-5">
+                      <div class="card">
+                        <div class="card-header bg-white"><strong>Register Webhook</strong></div>
+                        <div class="card-body">
+                          <form id="webhookForm">
+                            <div class="form-group"><label>Name *</label><input type="text" class="form-control form-control-sm" name="name" placeholder="e.g. Lab notification service" required></div>
+                            <div class="form-group"><label>URL *</label><input type="url" class="form-control form-control-sm" name="url" placeholder="https://your-system.com/webhook" required></div>
+                            <div class="form-group">
+                              <label>Events <button type="button" class="btn btn-xs btn-link" onclick="$('.webhook-event-cb').prop('checked',true)">All</button></label>
+                              <div class="border rounded p-2" style="max-height:200px;overflow-y:auto;" id="webhookEventCheckboxes"></div>
+                            </div>
+                            <button type="button" class="btn btn-primary btn-sm" onclick="registerWebhook()"><i class="fas fa-bell"></i> Register</button>
+                          </form>
+                          <div class="d-none mt-3" id="webhookSecretDisplay">
+                            <div class="alert alert-warning mb-2" style="font-size:0.85em;"><i class="fas fa-key"></i> Save this signing secret:</div>
+                            <input type="text" class="form-control form-control-sm" id="webhookSecretValue" readonly onclick="this.select()">
+                            <small class="text-muted">Use this to verify webhook signatures via <code>X-Webhook-Signature</code> header (HMAC-SHA256).</small>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -844,6 +945,10 @@ Authorization: Bearer &lt;token&gt;</pre>
         html += '<div class="form-group"><label>Raw Message <small class="text-muted">(copy this to send to lab system)</small></label>';
         html += '<textarea class="form-control" rows="4" readonly onclick="this.select()">' + esc(res.hl7Message.replace(/\r/g, '\n')) + '</textarea></div>';
 
+        html += '<hr><div class="d-flex align-items-center"><button class="btn btn-success mr-2" onclick="sendHL7Order(\'' + uuid + '\')"><i class="fas fa-paper-plane"></i> Send to Lab System</button>';
+        html += '<small class="text-muted">Sends via configured lab provider (MLLP or HTTP). Configure in Connectors → Lab Providers.</small></div>';
+        html += '<div id="hl7SendResult" class="mt-2"></div>';
+
         $('#labDetailContent').html(html);
         $('#labDetailModal').modal('show');
       }).fail(function(xhr) {
@@ -1235,6 +1340,10 @@ Authorization: Bearer &lt;token&gt;</pre>
         html += '</div>';
         $('#scopeCheckboxes').html(html);
       });
+
+      // Load lab providers and webhooks
+      loadLabProviders();
+      loadWebhooks();
     }
 
     function selectAllScopes(checked) {
@@ -1336,6 +1445,113 @@ Authorization: Bearer &lt;token&gt;</pre>
         $('#testTokenResult').html(html);
       }).fail(function(xhr) {
         $('#testTokenResult').html('<div class="alert alert-danger" style="font-size:0.85em;">' + esc(xhr.responseJSON?.message || 'Failed') + '</div>');
+      });
+    }
+
+    // SEND HL7 ORDER
+    function sendHL7Order(uuid) {
+      $('#hl7SendResult').html('<div class="text-info"><i class="fas fa-spinner fa-spin"></i> Sending...</div>');
+      api('POST', '/api/hl7/send/' + uuid).done(function(res) {
+        if (res.success) {
+          $('#hl7SendResult').html('<div class="alert alert-success"><i class="fas fa-check-circle"></i> <strong>Sent successfully</strong> via ' + esc(res.protocol) + ' to ' + esc(res.destination) + '<br><small>Sent at: ' + res.sentAt + '</small>' + (res.ack ? '<br><small>ACK: ' + esc(res.ack.substring(0,200)) + '</small>' : '') + '</div>');
+        } else {
+          $('#hl7SendResult').html('<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> <strong>Send failed</strong><br>' + esc(res.error) + '</div>');
+        }
+      }).fail(function(xhr) {
+        $('#hl7SendResult').html('<div class="alert alert-danger">Error: ' + esc(xhr.responseJSON?.message || 'Failed') + '</div>');
+      });
+    }
+
+    // LAB PROVIDERS
+    function loadLabProviders() {
+      api('GET', '/api/hl7/providers').done(function(res) {
+        var html = '';
+        (res.data || []).forEach(function(p) {
+          var dest = p.protocol === 'MLLP' ? (p.host||'') + ':' + (p.port||'') : (p.protocol === 'HTTP' ? (p.httpUrl||'') : 'N/A');
+          html += '<tr><td><strong>' + esc(p.name) + '</strong></td><td><span class="badge badge-' + (p.protocol==='MLLP'?'primary':p.protocol==='HTTP'?'info':'secondary') + '">' + p.protocol + '</span></td><td><small><code>' + esc(dest) + '</code></small></td><td>' + (p.active?'<span class="badge badge-success">Active</span>':'<span class="badge badge-danger">Inactive</span>') + '</td><td></td></tr>';
+        });
+        $('#labProviderList').html(html || '<tr><td colspan="5" class="text-center text-muted p-4">No lab providers configured</td></tr>');
+      });
+    }
+
+    function toggleProviderFields(protocol) {
+      $('#mllpFields').toggle(protocol === 'MLLP');
+      $('#httpFields').toggle(protocol === 'HTTP');
+    }
+
+    function saveLabProvider() {
+      var data = {};
+      $('#labProviderForm').serializeArray().forEach(function(f) { if (f.value) data[f.name] = f.value; });
+      if (!data.name) { alert('Name is required'); return; }
+      if (data.port) data.port = parseInt(data.port);
+      api('POST', '/api/hl7/providers', data).done(function() {
+        $('#labProviderForm')[0].reset();
+        loadLabProviders();
+      }).fail(function(xhr) { alert('Error: ' + (xhr.responseJSON?.message || 'Failed')); });
+    }
+
+    // WEBHOOKS
+    function loadWebhooks() {
+      api('GET', '/api/webhooks').done(function(res) {
+        var html = '';
+        (res.data || []).forEach(function(w) {
+          var events = (w.events||'').split(',');
+          var evDisplay = events.slice(0,2).join(', ') + (events.length > 2 ? ' +' + (events.length-2) : '');
+          html += '<tr><td><strong>' + esc(w.name) + '</strong></td><td><small><code>' + esc(w.url) + '</code></small></td><td><small>' + esc(evDisplay) + '</small></td><td>' + (w.active?'<span class="badge badge-success">Active</span>':'<span class="badge badge-danger">Off</span>') + '</td>';
+          html += '<td>';
+          if (w.active) {
+            html += '<button class="btn btn-xs btn-outline-info mr-1" onclick="testWebhook(\'' + w.webhookId + '\')"><i class="fas fa-play"></i></button>';
+            html += '<button class="btn btn-xs btn-outline-danger" onclick="deleteWebhook(\'' + w.webhookId + '\')"><i class="fas fa-ban"></i></button>';
+          }
+          html += '</td></tr>';
+        });
+        $('#webhookList').html(html || '<tr><td colspan="5" class="text-center text-muted p-3">No webhooks registered</td></tr>');
+      });
+
+      // Load events for checkboxes
+      api('GET', '/api/webhooks/events').done(function(res) {
+        var html = '';
+        (res.data||[]).forEach(function(e) {
+          html += '<div class="form-check"><input class="form-check-input webhook-event-cb" type="checkbox" value="' + e + '" id="wh-' + e + '"><label class="form-check-label" for="wh-' + e + '"><small>' + e + '</small></label></div>';
+        });
+        $('#webhookEventCheckboxes').html(html);
+      });
+
+      // Load delivery logs
+      api('GET', '/api/webhooks/logs').done(function(res) {
+        var html = '';
+        (res.data || []).slice(0, 20).forEach(function(l) {
+          html += '<tr><td><small>' + new Date(l.deliveredAt).toLocaleTimeString() + '</small></td><td><small>' + esc(l.event) + '</small></td><td><small>' + esc(l.url).substring(0,30) + '</small></td><td>' + (l.success?'<span class="badge badge-success">'+l.statusCode+'</span>':'<span class="badge badge-danger">'+(l.error||l.statusCode)+'</span>') + '</td><td><small>' + l.durationMs + 'ms</small></td></tr>';
+        });
+        $('#webhookLogList').html(html || '<tr><td colspan="5" class="text-center text-muted p-3">No deliveries yet</td></tr>');
+      });
+    }
+
+    function registerWebhook() {
+      var name = $('#webhookForm input[name="name"]').val();
+      var url = $('#webhookForm input[name="url"]').val();
+      if (!name || !url) { alert('Name and URL required'); return; }
+      var events = [];
+      $('.webhook-event-cb:checked').each(function() { events.push($(this).val()); });
+      if (!events.length) { alert('Select at least one event'); return; }
+
+      api('POST', '/api/webhooks', { name: name, url: url, events: events }).done(function(res) {
+        $('#webhookSecretValue').val(res.secret);
+        $('#webhookSecretDisplay').removeClass('d-none');
+        $('#webhookForm')[0].reset();
+        loadWebhooks();
+      }).fail(function(xhr) { alert('Error: ' + (xhr.responseJSON?.message || 'Failed')); });
+    }
+
+    function deleteWebhook(webhookId) {
+      if (!confirm('Deactivate this webhook?')) return;
+      api('DELETE', '/api/webhooks/' + webhookId).done(function() { loadWebhooks(); });
+    }
+
+    function testWebhook(webhookId) {
+      api('POST', '/api/webhooks/test', { webhookId: webhookId }).done(function(res) {
+        alert('Test event dispatched! Check the delivery log.');
+        setTimeout(loadWebhooks, 1000);
       });
     }
 
