@@ -2,6 +2,8 @@
 
 A modern Electronic Health Records (EHR) system built with NestJS and TypeScript, translated from the [OpenEMR](https://www.open-emr.org/) open-source project.
 
+Created by **Alvin Loh** ([@alvinloh](https://github.com/alvinloh))
+
 ## About
 
 OpenEMR-TS is a clean reimplementation of core OpenEMR clinical workflows in TypeScript. The original OpenEMR project — with over 4,300 PHP files and 281 database tables — was analyzed, and its key clinical features were translated into a modern NestJS application with a redesigned 26-table schema across ~10,000 lines of code.
@@ -189,6 +191,10 @@ We are deeply grateful to the OpenEMR community — the developers, contributors
 - **OpenEMR Community**: https://community.open-emr.org/
 
 OpenEMR is licensed under the GNU General Public License v3.
+
+## Author
+
+**Alvin Loh** — [GitHub](https://github.com/alvinloh)
 
 ## License
 
