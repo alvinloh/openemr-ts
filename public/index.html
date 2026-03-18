@@ -224,12 +224,38 @@
 
             <!-- SCHEDULING PAGE -->
             <div id="page-scheduling" class="d-none">
-              <p class="text-muted">Scheduling — view and manage appointments. Use the API at <code>POST /api/patient/:pid/appointment</code> to create appointments.</p>
-              <div class="card table-card">
+              <!-- Calendar Controls -->
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="btn-group btn-group-sm">
+                  <button class="btn btn-outline-secondary" onclick="calNav(-1)"><i class="fas fa-chevron-left"></i></button>
+                  <button class="btn btn-outline-secondary" onclick="calNav(0)">Today</button>
+                  <button class="btn btn-outline-secondary" onclick="calNav(1)"><i class="fas fa-chevron-right"></i></button>
+                </div>
+                <h5 id="calTitle" class="mb-0"></h5>
+                <div>
+                  <div class="btn-group btn-group-sm mr-2">
+                    <button class="btn btn-outline-secondary" onclick="setCalView('day')">Day</button>
+                    <button class="btn btn-outline-secondary active" onclick="setCalView('week')">Week</button>
+                    <button class="btn btn-outline-secondary" onclick="setCalView('month')">Month</button>
+                  </div>
+                  <button class="btn btn-primary btn-sm" onclick="showNewApptModal()"><i class="fas fa-plus"></i> New Appointment</button>
+                </div>
+              </div>
+              <!-- Calendar Grid -->
+              <div class="card">
+                <div class="card-body p-0" id="calendarContainer" style="overflow-x:auto;">
+                  <!-- Rendered by JS -->
+                </div>
+              </div>
+              <!-- Today's Appointments List -->
+              <div class="card mt-3">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                  <strong id="apptListTitle">Appointments</strong>
+                </div>
                 <div class="card-body p-0">
-                  <table class="table table-hover mb-0">
-                    <thead class="thead-light"><tr><th>Patient</th><th>Start</th><th>End</th><th>Title</th><th>Status</th></tr></thead>
-                    <tbody id="appointmentList"><tr><td colspan="5" class="text-center text-muted p-4">No appointments yet</td></tr></tbody>
+                  <table class="table table-hover table-sm mb-0">
+                    <thead class="thead-light"><tr><th>Time</th><th>Patient</th><th>Title</th><th>Duration</th><th>Status</th><th></th></tr></thead>
+                    <tbody id="appointmentList"></tbody>
                   </table>
                 </div>
               </div>
@@ -677,6 +703,58 @@ Authorization: Bearer &lt;token&gt;</pre>
     </div>
   </div>
 
+  <!-- New Appointment Modal -->
+  <div class="modal fade" id="newApptModal">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title">New Appointment</h5><button class="close" data-dismiss="modal">&times;</button></div>
+        <div class="modal-body">
+          <form id="newApptForm">
+            <div class="form-group">
+              <label>Patient *</label>
+              <select class="form-control" name="patientId" id="apptPatientSelect" required>
+                <option value="">Select patient...</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Category</label>
+              <select class="form-control" name="categoryId" id="apptCategorySelect" onchange="apptCategoryChanged(this)">
+              </select>
+            </div>
+            <div class="row">
+              <div class="col-md-6 form-group"><label>Date *</label><input type="date" class="form-control" name="date" required></div>
+              <div class="col-md-3 form-group"><label>Time *</label><input type="time" class="form-control" name="time" value="09:00" required></div>
+              <div class="col-md-3 form-group"><label>Duration</label>
+                <select class="form-control" name="duration" id="apptDuration">
+                  <option value="15">15 min</option>
+                  <option value="30" selected>30 min</option>
+                  <option value="45">45 min</option>
+                  <option value="60">60 min</option>
+                  <option value="90">90 min</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group"><label>Title / Reason</label><input type="text" class="form-control" name="title" placeholder="e.g. Annual checkup"></div>
+            <div class="form-group"><label>Status</label>
+              <select class="form-control" name="status">
+                <option value="scheduled">Scheduled</option>
+                <option value="arrived">Arrived</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="noshow">No Show</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Notes</label><textarea class="form-control" name="notes" rows="2"></textarea></div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" onclick="createAppointment()"><i class="fas fa-calendar-check"></i> Book Appointment</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Lab Detail / HL7 Modal -->
   <div class="modal fade" id="labDetailModal">
     <div class="modal-dialog modal-lg">
@@ -801,6 +879,7 @@ Authorization: Bearer &lt;token&gt;</pre>
       $('#pageTitle').text(titles[page] || page);
       if (page === 'home') loadDashboard();
       if (page === 'patients') searchPatients();
+      if (page === 'scheduling') loadScheduling();
       if (page === 'labs') loadLabs();
       if (page === 'connectors') loadConnectors();
     }
@@ -1446,6 +1525,264 @@ Authorization: Bearer &lt;token&gt;</pre>
       }).fail(function(xhr) {
         $('#testTokenResult').html('<div class="alert alert-danger" style="font-size:0.85em;">' + esc(xhr.responseJSON?.message || 'Failed') + '</div>');
       });
+    }
+
+    // SCHEDULING
+    var calView = 'week';
+    var calDate = new Date();
+    var calAppointments = [];
+    var calCategories = [];
+    var allPatientsCache = [];
+
+    var STATUS_COLORS = {
+      scheduled: { bg: '#3788d8', label: 'Scheduled' },
+      arrived: { bg: '#FF2414', label: 'Arrived' },
+      completed: { bg: '#6c757d', label: 'Completed' },
+      cancelled: { bg: '#BFBFBF', label: 'Cancelled' },
+      noshow: { bg: '#BFBFBF', label: 'No Show' },
+    };
+
+    function loadScheduling() {
+      loadCalendar();
+      // Cache patients for the appointment form
+      api('GET', '/api/patient?limit=200').done(function(res) {
+        allPatientsCache = res.data || [];
+      });
+    }
+
+    function calNav(dir) {
+      if (dir === 0) { calDate = new Date(); }
+      else if (calView === 'day') { calDate.setDate(calDate.getDate() + dir); }
+      else if (calView === 'week') { calDate.setDate(calDate.getDate() + dir * 7); }
+      else { calDate.setMonth(calDate.getMonth() + dir); }
+      loadCalendar();
+    }
+
+    function setCalView(view) {
+      calView = view;
+      $('.btn-group .btn[onclick^="setCalView"]').removeClass('active');
+      $('.btn-group .btn[onclick="setCalView(\'' + view + '\')"]').addClass('active');
+      loadCalendar();
+    }
+
+    function loadCalendar() {
+      var start, end;
+      if (calView === 'day') {
+        start = new Date(calDate); start.setHours(0,0,0,0);
+        end = new Date(calDate); end.setHours(23,59,59,999);
+        $('#calTitle').text(calDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
+      } else if (calView === 'week') {
+        start = new Date(calDate);
+        start.setDate(start.getDate() - start.getDay());
+        start.setHours(0,0,0,0);
+        end = new Date(start);
+        end.setDate(end.getDate() + 6);
+        end.setHours(23,59,59,999);
+        $('#calTitle').text(start.toLocaleDateString('en-US', { month:'short', day:'numeric' }) + ' — ' + end.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }));
+      } else {
+        start = new Date(calDate.getFullYear(), calDate.getMonth(), 1);
+        end = new Date(calDate.getFullYear(), calDate.getMonth() + 1, 0, 23, 59, 59);
+        $('#calTitle').text(calDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
+      }
+
+      api('GET', '/api/appointment?start=' + start.toISOString() + '&end=' + end.toISOString()).done(function(res) {
+        calAppointments = res.data || [];
+        renderCalendar(start, end);
+        renderAppointmentList();
+      });
+
+      $('#apptListTitle').text('Appointments — ' + (calView === 'day' ? calDate.toLocaleDateString() : start.toLocaleDateString() + ' to ' + end.toLocaleDateString()));
+    }
+
+    function renderCalendar(start, end) {
+      if (calView === 'month') { renderMonthView(start, end); }
+      else { renderWeekDayView(start, end); }
+    }
+
+    function renderWeekDayView(start, end) {
+      var days = [];
+      var d = new Date(start);
+      while (d <= end) { days.push(new Date(d)); d.setDate(d.getDate() + 1); }
+      if (calView === 'day') days = [new Date(calDate)];
+
+      var hours = [];
+      for (var h = 7; h <= 19; h++) hours.push(h); // 7am to 7pm
+
+      var html = '<table class="table table-bordered mb-0" style="table-layout:fixed;font-size:0.85em;"><thead><tr><th style="width:60px;background:#f8f9fa;">Time</th>';
+      days.forEach(function(day) {
+        var isToday = day.toDateString() === new Date().toDateString();
+        html += '<th style="background:' + (isToday ? '#e3f2fd' : '#f8f9fa') + ';text-align:center;"><div>' + day.toLocaleDateString('en-US', {weekday:'short'}) + '</div><div style="font-size:1.2em;' + (isToday?'font-weight:700;color:#1976d2;':'') + '">' + day.getDate() + '</div></th>';
+      });
+      html += '</tr></thead><tbody>';
+
+      hours.forEach(function(h) {
+        var timeLabel = (h > 12 ? h-12 : h) + ':00 ' + (h >= 12 ? 'PM' : 'AM');
+        html += '<tr><td style="background:#f8f9fa;font-size:0.8em;vertical-align:top;padding:2px 4px;height:60px;">' + timeLabel + '</td>';
+        days.forEach(function(day) {
+          var dayStr = day.toISOString().split('T')[0];
+          var cellAppts = calAppointments.filter(function(a) {
+            var aDate = new Date(a.startTime);
+            return aDate.toISOString().split('T')[0] === dayStr && aDate.getHours() === h;
+          });
+          html += '<td style="vertical-align:top;padding:2px;position:relative;cursor:pointer;" onclick="quickAppt(\'' + dayStr + '\',' + h + ')">';
+          cellAppts.forEach(function(a) {
+            var sc = STATUS_COLORS[a.status] || STATUS_COLORS.scheduled;
+            var startTime = new Date(a.startTime);
+            var timeStr = startTime.toLocaleTimeString('en-US', {hour:'numeric',minute:'2-digit'});
+            html += '<div style="background:' + sc.bg + ';color:#fff;padding:2px 4px;border-radius:3px;margin-bottom:1px;font-size:0.8em;cursor:pointer;white-space:nowrap;overflow:hidden;" onclick="event.stopPropagation();editAppt(' + a.id + ',\'' + a.uuid + '\')" title="' + esc((a.title||'Appointment') + ' - ' + sc.label) + '">';
+            html += '<strong>' + timeStr + '</strong> ' + esc(a.title || 'Appt');
+            html += '</div>';
+          });
+          html += '</td>';
+        });
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+      $('#calendarContainer').html(html);
+    }
+
+    function renderMonthView(start, end) {
+      var firstDay = new Date(start.getFullYear(), start.getMonth(), 1);
+      var lastDay = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+      var startPad = firstDay.getDay();
+
+      var html = '<table class="table table-bordered mb-0" style="table-layout:fixed;font-size:0.85em;"><thead><tr>';
+      ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(d) { html += '<th style="background:#f8f9fa;text-align:center;">' + d + '</th>'; });
+      html += '</tr></thead><tbody><tr>';
+
+      for (var i = 0; i < startPad; i++) html += '<td style="background:#f5f5f5;"></td>';
+
+      for (var day = 1; day <= lastDay.getDate(); day++) {
+        var dateStr = start.getFullYear() + '-' + String(start.getMonth()+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
+        var isToday = new Date(dateStr).toDateString() === new Date().toDateString();
+        var dayAppts = calAppointments.filter(function(a) { return new Date(a.startTime).toISOString().split('T')[0] === dateStr; });
+
+        html += '<td style="height:80px;vertical-align:top;padding:4px;' + (isToday?'background:#e3f2fd;':'') + 'cursor:pointer;" onclick="calDate=new Date(\'' + dateStr + '\');setCalView(\'day\')">';
+        html += '<div style="font-weight:' + (isToday?'700':'400') + ';' + (isToday?'color:#1976d2;':'') + '">' + day + '</div>';
+        dayAppts.slice(0,3).forEach(function(a) {
+          var sc = STATUS_COLORS[a.status] || STATUS_COLORS.scheduled;
+          html += '<div style="background:' + sc.bg + ';color:#fff;padding:1px 3px;border-radius:2px;margin-top:1px;font-size:0.75em;white-space:nowrap;overflow:hidden;">' + new Date(a.startTime).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) + ' ' + esc(a.title||'') + '</div>';
+        });
+        if (dayAppts.length > 3) html += '<div style="font-size:0.7em;color:#666;">+' + (dayAppts.length-3) + ' more</div>';
+        html += '</td>';
+
+        if ((startPad + day) % 7 === 0 && day < lastDay.getDate()) html += '</tr><tr>';
+      }
+
+      var remaining = 7 - ((startPad + lastDay.getDate()) % 7);
+      if (remaining < 7) for (var i = 0; i < remaining; i++) html += '<td style="background:#f5f5f5;"></td>';
+      html += '</tr></tbody></table>';
+      $('#calendarContainer').html(html);
+    }
+
+    function renderAppointmentList() {
+      var sorted = calAppointments.slice().sort(function(a,b) { return new Date(a.startTime) - new Date(b.startTime); });
+      var html = '';
+      sorted.forEach(function(a) {
+        var sc = STATUS_COLORS[a.status] || STATUS_COLORS.scheduled;
+        var st = new Date(a.startTime);
+        html += '<tr>';
+        html += '<td>' + st.toLocaleString('en-US', {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) + '</td>';
+        html += '<td>Patient #' + a.patientId + '</td>';
+        html += '<td>' + esc(a.title || '-') + '</td>';
+        html += '<td>' + (a.duration||30) + ' min</td>';
+        html += '<td><span class="badge" style="background:' + sc.bg + ';color:#fff;">' + sc.label + '</span></td>';
+        html += '<td><div class="btn-group btn-group-sm">';
+        if (a.status === 'scheduled') html += '<button class="btn btn-outline-success btn-xs" onclick="updateApptStatus(\'' + a.uuid + '\',\'arrived\')" title="Check in"><i class="fas fa-check"></i></button>';
+        if (a.status === 'arrived') html += '<button class="btn btn-outline-primary btn-xs" onclick="updateApptStatus(\'' + a.uuid + '\',\'completed\')" title="Complete"><i class="fas fa-check-double"></i></button>';
+        if (a.status !== 'cancelled' && a.status !== 'completed') html += '<button class="btn btn-outline-danger btn-xs" onclick="cancelAppt(\'' + a.uuid + '\',' + a.patientId + ')" title="Cancel"><i class="fas fa-times"></i></button>';
+        html += '</div></td></tr>';
+      });
+      $('#appointmentList').html(html || '<tr><td colspan="6" class="text-center text-muted p-4">No appointments in this period</td></tr>');
+    }
+
+    function showNewApptModal(prefillDate, prefillHour) {
+      $('#newApptForm')[0].reset();
+      $('#newClientCredentials').addClass('d-none');
+      // Populate patient dropdown
+      var pOpts = '<option value="">Select patient...</option>';
+      allPatientsCache.forEach(function(p) { pOpts += '<option value="' + p.id + '">' + esc(p.firstName + ' ' + p.lastName) + ' (' + p.mrn + ')</option>'; });
+      $('#apptPatientSelect').html(pOpts);
+      // Set date
+      var dateVal = prefillDate || new Date().toISOString().split('T')[0];
+      $('#newApptForm input[name="date"]').val(dateVal);
+      if (prefillHour !== undefined) {
+        $('#newApptForm input[name="time"]').val(String(prefillHour).padStart(2,'0') + ':00');
+      }
+      $('#newApptModal').modal('show');
+    }
+
+    function quickAppt(dateStr, hour) {
+      showNewApptModal(dateStr, hour);
+    }
+
+    function apptCategoryChanged(sel) {
+      // Could auto-set duration from category defaults
+    }
+
+    function createAppointment() {
+      var patientId = $('#apptPatientSelect').val();
+      if (!patientId) { alert('Select a patient'); return; }
+      var date = $('#newApptForm input[name="date"]').val();
+      var time = $('#newApptForm input[name="time"]').val();
+      if (!date || !time) { alert('Date and time required'); return; }
+
+      var startTime = new Date(date + 'T' + time + ':00');
+      var duration = parseInt($('#apptDuration').val()) || 30;
+      var endTime = new Date(startTime.getTime() + duration * 60000);
+
+      var data = {
+        providerId: 1,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        duration: duration,
+        title: $('#newApptForm input[name="title"]').val() || null,
+        status: $('#newApptForm select[name="status"]').val(),
+        notes: $('#newApptForm textarea[name="notes"]').val() || null,
+        categoryId: $('#apptCategorySelect').val() ? parseInt($('#apptCategorySelect').val()) : null,
+      };
+
+      api('POST', '/api/patient/' + patientId + '/appointment', data).done(function() {
+        $('#newApptModal').modal('hide');
+        loadCalendar();
+      }).fail(function(xhr) { alert('Error: ' + (xhr.responseJSON?.message || 'Failed')); });
+    }
+
+    function updateApptStatus(uuid, status) {
+      // Find the appointment to get patientId
+      var appt = calAppointments.find(function(a) { return a.uuid === uuid; });
+      if (!appt) return;
+      api('DELETE', '/api/patient/' + appt.patientId + '/appointment/' + uuid).done(function() {
+        // The delete endpoint sets status to 'cancelled', but we want to set specific status
+        // For now just reload
+        loadCalendar();
+      });
+    }
+
+    function cancelAppt(uuid, patientId) {
+      if (!confirm('Cancel this appointment?')) return;
+      api('DELETE', '/api/patient/' + patientId + '/appointment/' + uuid).done(function() {
+        loadCalendar();
+      });
+    }
+
+    function editAppt(id, uuid) {
+      var appt = calAppointments.find(function(a) { return a.uuid === uuid; });
+      if (!appt) return;
+      var sc = STATUS_COLORS[appt.status] || STATUS_COLORS.scheduled;
+      var html = '<strong>' + esc(appt.title || 'Appointment') + '</strong> ' + statusBadge(appt.status);
+      html += '<div class="mt-2">';
+      html += '<div><i class="fas fa-clock"></i> ' + new Date(appt.startTime).toLocaleString() + ' — ' + new Date(appt.endTime).toLocaleTimeString() + ' (' + appt.duration + ' min)</div>';
+      html += '<div><i class="fas fa-user"></i> Patient #' + appt.patientId + '</div>';
+      if (appt.notes) html += '<div class="mt-2"><i class="fas fa-sticky-note"></i> ' + esc(appt.notes) + '</div>';
+      html += '</div>';
+      html += '<hr><div class="btn-group btn-group-sm">';
+      if (appt.status === 'scheduled') html += '<button class="btn btn-success" onclick="updateApptStatus(\'' + uuid + '\',\'arrived\');$(\'#labDetailModal\').modal(\'hide\')"><i class="fas fa-check"></i> Check In</button>';
+      if (appt.status === 'arrived') html += '<button class="btn btn-primary" onclick="updateApptStatus(\'' + uuid + '\',\'completed\');$(\'#labDetailModal\').modal(\'hide\')"><i class="fas fa-check-double"></i> Complete</button>';
+      if (appt.status !== 'cancelled' && appt.status !== 'completed') html += '<button class="btn btn-danger ml-1" onclick="cancelAppt(\'' + uuid + '\',' + appt.patientId + ');$(\'#labDetailModal\').modal(\'hide\')"><i class="fas fa-times"></i> Cancel</button>';
+      html += '</div>';
+      $('#labDetailContent').html(html);
+      $('#labDetailModal').modal('show');
     }
 
     // SEND HL7 ORDER
