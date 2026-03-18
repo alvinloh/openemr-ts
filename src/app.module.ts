@@ -15,6 +15,8 @@ import { DocumentModule } from './document/document.module.js';
 import { FhirModule } from './fhir/fhir.module.js';
 import { Hl7Module } from './hl7/hl7.module.js';
 import { DicomModule } from './dicom/dicom.module.js';
+import { PdfModule } from './pdf/pdf.module.js';
+import { JobsModule } from './jobs/jobs.module.js';
 
 @Module({
   imports: [
@@ -64,6 +66,8 @@ import { DicomModule } from './dicom/dicom.module.js';
     FhirModule,
     Hl7Module,
     DicomModule,
+    PdfModule,
+    JobsModule,
   ],
 })
 export class AppModule {}

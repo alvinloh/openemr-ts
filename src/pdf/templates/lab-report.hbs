@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 12px; color: #333; line-height: 1.5; }
+    .header { border-bottom: 2px solid #2c3e50; padding-bottom: 10px; margin-bottom: 20px; }
+    .header h1 { color: #2c3e50; margin: 0; font-size: 20px; }
+    .header .subtitle { color: #7f8c8d; font-size: 11px; }
+    .section { margin-bottom: 20px; }
+    .section h2 { font-size: 14px; color: #2c3e50; border-bottom: 1px solid #eee; padding-bottom: 4px; margin-bottom: 8px; }
+    table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+    th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f8f9fa; font-weight: 600; font-size: 11px; text-transform: uppercase; color: #555; }
+    .abnormal { color: #dc3545; font-weight: 700; }
+    .normal { color: #28a745; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+    .badge-complete { background: #d4edda; color: #155724; }
+    .badge-pending { background: #fff3cd; color: #856404; }
+    .footer { border-top: 1px solid #ddd; padding-top: 8px; margin-top: 30px; font-size: 9px; color: #999; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Laboratory Report</h1>
+    <div class="subtitle">Generated: {{generatedAt}}</div>
+  </div>
+
+  <div class="section">
+    <h2>Order Information</h2>
+    <table>
+      <tr><td style="width:140px;font-weight:600;">Order ID</td><td>{{order.id}}</td></tr>
+      <tr><td style="font-weight:600;">Order Date</td><td>{{order.orderDate}}</td></tr>
+      <tr><td style="font-weight:600;">Type</td><td>{{order.orderType}}</td></tr>
+      <tr><td style="font-weight:600;">Status</td><td><span class="badge {{#if (eq order.status 'complete')}}badge-complete{{else}}badge-pending{{/if}}">{{order.status}}</span></td></tr>
+      <tr><td style="font-weight:600;">Priority</td><td>{{order.priority}}</td></tr>
+    </table>
+  </div>
+
+  {{#if codes.length}}
+  <div class="section">
+    <h2>Ordered Tests</h2>
+    <table>
+      <thead><tr><th>Code</th><th>Test Name</th></tr></thead>
+      <tbody>
+        {{#each codes}}
+        <tr><td>{{this.procedureCode}}</td><td>{{this.procedureName}}</td></tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+  {{/if}}
+
+  {{#if results.length}}
+  <div class="section">
+    <h2>Results</h2>
+    <table>
+      <thead><tr><th>Code</th><th>Test</th><th>Value</th><th>Units</th><th>Reference Range</th><th>Flag</th><th>Status</th></tr></thead>
+      <tbody>
+        {{#each results}}
+        <tr>
+          <td>{{this.resultCode}}</td>
+          <td>{{this.resultText}}</td>
+          <td><strong>{{this.value}}</strong></td>
+          <td>{{this.units}}</td>
+          <td>{{this.referenceRange}}</td>
+          <td class="{{#if (eq this.abnormal 'no')}}normal{{else}}abnormal{{/if}}">{{this.abnormal}}</td>
+          <td>{{this.status}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+  {{/if}}
+
+  <div class="footer">OpenEMR-TS &mdash; Laboratory Report &mdash; CONFIDENTIAL</div>
+</body>
+</html>
