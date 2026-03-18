@@ -18,6 +18,7 @@ import { DicomModule } from './dicom/dicom.module.js';
 import { PdfModule } from './pdf/pdf.module.js';
 import { JobsModule } from './jobs/jobs.module.js';
 import { OAuth2Module } from './oauth2/oauth2.module.js';
+import { WebhookModule } from './webhook/webhook.module.js';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { OAuth2Module } from './oauth2/oauth2.module.js';
     AuditModule,
     AuthModule,
     OAuth2Module,
+    WebhookModule,
 
     // Clinical
     PatientModule,

@@ -22,7 +22,17 @@ export class LabProvider extends BaseEntity {
   recvFacility: string | null;
 
   @Column({ type: 'varchar', length: 20, default: 'DL' })
-  protocol: string; // DL (download), HL7
+  protocol: string; // DL (download), MLLP, HTTP
+
+  // Connection settings for outbound HL7
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  host: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  port: number | null;
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  httpUrl: string | null; // For HTTP protocol
 
   @Column({ type: 'text', nullable: true })
   directions: string | null;
