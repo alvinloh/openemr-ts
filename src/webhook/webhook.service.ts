@@ -15,6 +15,7 @@ export const WEBHOOK_EVENTS = [
   'medication.created',
   'appointment.created',
   'appointment.cancelled',
+  'document.received',
 ] as const;
 
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
