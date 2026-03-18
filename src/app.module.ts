@@ -17,6 +17,7 @@ import { Hl7Module } from './hl7/hl7.module.js';
 import { DicomModule } from './dicom/dicom.module.js';
 import { PdfModule } from './pdf/pdf.module.js';
 import { JobsModule } from './jobs/jobs.module.js';
+import { OAuth2Module } from './oauth2/oauth2.module.js';
 
 @Module({
   imports: [
@@ -44,12 +45,13 @@ import { JobsModule } from './jobs/jobs.module.js';
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'public'),
       serveRoot: '/',
-      exclude: ['/api/(.*)', '/fhir/(.*)'],
+      exclude: ['/api/(.*)', '/fhir/(.*)', '/oauth2/(.*)'],
     }),
 
     // Core
     AuditModule,
     AuthModule,
+    OAuth2Module,
 
     // Clinical
     PatientModule,
