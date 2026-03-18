@@ -83,6 +83,7 @@
             <a class="nav-link" href="#" data-page="billing"><i class="fas fa-file-invoice-dollar"></i> Billing</a>
             <a class="nav-link" href="#" data-page="fhir"><i class="fas fa-exchange-alt"></i> FHIR</a>
             <a class="nav-link" href="#" data-page="dicom"><i class="fas fa-x-ray"></i> DICOM Viewer</a>
+            <a class="nav-link" href="#" data-page="connectors"><i class="fas fa-plug"></i> Connectors</a>
             <a class="nav-link" href="/api-docs" target="_blank"><i class="fas fa-book"></i> API Docs</a>
           </nav>
         </div>
@@ -290,6 +291,155 @@
                     <div class="card-header bg-white"><strong>Image Info</strong></div>
                     <div class="card-body" id="dicomInfo">
                       <div class="text-muted">No image loaded</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- CONNECTORS PAGE -->
+            <div id="page-connectors" class="d-none">
+              <!-- Tabs -->
+              <ul class="nav nav-tabs mb-3">
+                <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#conn-tab-clients">Registered Clients</a></li>
+                <li class="nav-item"><a class="nav-link" id="conn-tab-register-link" data-toggle="tab" href="#conn-tab-register">Register New Client</a></li>
+                <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#conn-tab-tokens">Token Tools</a></li>
+              </ul>
+              <div class="tab-content">
+                <!-- Client List Tab -->
+                <div class="tab-pane fade show active" id="conn-tab-clients">
+                  <div class="card table-card">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                      <strong><i class="fas fa-plug"></i> OAuth2 API Clients</strong>
+                      <button class="btn btn-sm btn-primary" onclick="$('#conn-tab-register-link').tab('show')"><i class="fas fa-plus"></i> Register Client</button>
+                    </div>
+                    <div class="card-body p-0">
+                      <table class="table table-hover mb-0">
+                        <thead class="thead-light">
+                          <tr><th>Name</th><th>Client ID</th><th>Status</th><th>Grant Types</th><th>Scopes</th><th></th></tr>
+                        </thead>
+                        <tbody id="connectorClientList"></tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Register New Client Tab -->
+                <div class="tab-pane fade" id="conn-tab-register">
+                  <div class="row">
+                    <div class="col-md-7">
+                      <div class="card">
+                        <div class="card-header bg-white"><strong>Register New API Client</strong></div>
+                        <div class="card-body">
+                          <form id="registerClientForm">
+                            <div class="form-group">
+                              <label>Application Name *</label>
+                              <input type="text" class="form-control" name="name" placeholder="e.g. Springfield Hospital EHR" required>
+                            </div>
+                            <div class="form-group">
+                              <label>Description</label>
+                              <input type="text" class="form-control" name="description" placeholder="Brief description of the connecting system">
+                            </div>
+                            <div class="form-group">
+                              <label>Redirect URI</label>
+                              <input type="text" class="form-control" name="redirectUri" placeholder="https://their-system.com/callback (optional)">
+                            </div>
+                            <div class="form-group">
+                              <label>Grant Types</label>
+                              <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="grant_client_credentials" id="grantCC" checked>
+                                <label class="form-check-label" for="grantCC">Client Credentials <small class="text-muted">(system-to-system, no user login)</small></label>
+                              </div>
+                            </div>
+                            <div class="form-group">
+                              <label>FHIR Scopes <button type="button" class="btn btn-xs btn-link" onclick="selectAllScopes(true)">Select All</button> <button type="button" class="btn btn-xs btn-link" onclick="selectAllScopes(false)">Clear</button></label>
+                              <div class="border rounded p-3" style="max-height:300px;overflow-y:auto;" id="scopeCheckboxes">
+                                <!-- Populated by JS -->
+                              </div>
+                            </div>
+                            <button type="button" class="btn btn-primary" onclick="registerClient()"><i class="fas fa-key"></i> Register Client</button>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-5">
+                      <div class="card bg-light">
+                        <div class="card-header bg-white"><strong>How It Works</strong></div>
+                        <div class="card-body" style="font-size:0.9em;">
+                          <p><strong>1. Register</strong> — Create a client and receive a <code>client_id</code> and <code>client_secret</code>.</p>
+                          <p><strong>2. Get Token</strong> — The external system sends credentials to <code>POST /oauth2/token</code>:</p>
+                          <pre class="bg-dark text-light p-2 rounded" style="font-size:0.85em;">{
+  "grant_type": "client_credentials",
+  "client_id": "...",
+  "client_secret": "...",
+  "scope": "patient/Patient.rs"
+}</pre>
+                          <p><strong>3. Query FHIR</strong> — Use the access token as a Bearer token:</p>
+                          <pre class="bg-dark text-light p-2 rounded" style="font-size:0.85em;">GET /fhir/Patient
+Authorization: Bearer &lt;token&gt;</pre>
+                          <p class="text-muted mb-0">Tokens expire after 1 hour. The system can request a new one at any time.</p>
+                        </div>
+                      </div>
+                      <!-- Credentials display (shown after registration) -->
+                      <div class="card mt-3 d-none" id="newClientCredentials">
+                        <div class="card-header bg-success text-white"><strong><i class="fas fa-check-circle"></i> Client Registered</strong></div>
+                        <div class="card-body">
+                          <div class="alert alert-warning mb-2" style="font-size:0.85em;">
+                            <i class="fas fa-exclamation-triangle"></i> Save the <strong>client_secret</strong> now — it will not be shown again!
+                          </div>
+                          <div class="form-group">
+                            <label><small>Client ID</small></label>
+                            <input type="text" class="form-control form-control-sm" id="newClientId" readonly onclick="this.select()">
+                          </div>
+                          <div class="form-group">
+                            <label><small>Client Secret</small></label>
+                            <textarea class="form-control form-control-sm" id="newClientSecret" rows="2" readonly onclick="this.select()"></textarea>
+                          </div>
+                          <button class="btn btn-sm btn-outline-secondary" onclick="copyCredentials()"><i class="fas fa-copy"></i> Copy Both</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Token Tools Tab -->
+                <div class="tab-pane fade" id="conn-tab-tokens">
+                  <div class="row">
+                    <div class="col-md-6">
+                      <div class="card">
+                        <div class="card-header bg-white"><strong>Token Introspection</strong></div>
+                        <div class="card-body">
+                          <div class="form-group">
+                            <label>Paste an access token to inspect</label>
+                            <textarea class="form-control" id="introspectTokenInput" rows="3" placeholder="eyJhbGciOiJIUzI1NiIs..."></textarea>
+                          </div>
+                          <button class="btn btn-primary btn-sm" onclick="introspectToken()"><i class="fas fa-search"></i> Inspect Token</button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="card">
+                        <div class="card-header bg-white"><strong>Result</strong></div>
+                        <div class="card-body" id="introspectResult">
+                          <div class="text-muted">Paste a token and click Inspect</div>
+                        </div>
+                      </div>
+                      <div class="card mt-3">
+                        <div class="card-header bg-white"><strong>Quick Test</strong></div>
+                        <div class="card-body">
+                          <p class="mb-2" style="font-size:0.9em;">Generate a token for a registered client:</p>
+                          <div class="form-group">
+                            <select class="form-control form-control-sm" id="testClientSelect">
+                              <option value="">Select a client...</option>
+                            </select>
+                          </div>
+                          <div class="form-group">
+                            <input type="text" class="form-control form-control-sm" id="testClientSecret" placeholder="Client Secret">
+                          </div>
+                          <button class="btn btn-sm btn-success" onclick="testGenerateToken()"><i class="fas fa-play"></i> Generate Token</button>
+                          <div id="testTokenResult" class="mt-2"></div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -535,11 +685,12 @@
       $('.sidebar .nav-link[data-page="' + page + '"]').addClass('active');
       $('[id^="page-"]').addClass('d-none');
       $('#page-' + page).removeClass('d-none');
-      var titles = { home:'Dashboard', patients:'Patients', scheduling:'Scheduling', labs:'Lab Orders', billing:'Billing', dicom:'DICOM Viewer', fhir:'FHIR Explorer', 'patient-detail':'Patient Detail' };
+      var titles = { home:'Dashboard', patients:'Patients', scheduling:'Scheduling', labs:'Lab Orders', billing:'Billing', dicom:'DICOM Viewer', fhir:'FHIR Explorer', connectors:'Connectors', 'patient-detail':'Patient Detail' };
       $('#pageTitle').text(titles[page] || page);
       if (page === 'home') loadDashboard();
       if (page === 'patients') searchPatients();
       if (page === 'labs') loadLabs();
+      if (page === 'connectors') loadConnectors();
     }
 
     // PATIENTS
@@ -984,6 +1135,159 @@
     function statusBadge(status) {
       var colors = { active:'success', 'in-progress':'info', finished:'secondary', completed:'secondary', fulfilled:'secondary', cancelled:'danger', stopped:'danger', noshow:'danger', booked:'primary', arrived:'info', pending:'warning', proposed:'light', unknown:'light', current:'success' };
       return '<span class="badge badge-' + (colors[status]||'light') + '">' + capitalize(status||'unknown') + '</span>';
+    }
+
+    // CONNECTORS
+    var allScopes = [];
+
+    function loadConnectors() {
+      // Load client list
+      api('GET', '/api/oauth2/clients').done(function(res) {
+        var html = '';
+        (res.data || []).forEach(function(c) {
+          var scopeList = (c.scopes||'').split(',');
+          var scopeDisplay = scopeList.slice(0, 3).join(', ');
+          if (scopeList.length > 3) scopeDisplay += ' +' + (scopeList.length - 3) + ' more';
+          html += '<tr>' +
+            '<td><strong>' + esc(c.name) + '</strong>' + (c.description ? '<br><small class="text-muted">' + esc(c.description) + '</small>' : '') + '</td>' +
+            '<td><code style="font-size:0.8em;">' + esc(c.clientId) + '</code></td>' +
+            '<td>' + (c.active ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-danger">Revoked</span>') + '</td>' +
+            '<td><small>' + esc(c.grantTypes) + '</small></td>' +
+            '<td><small>' + esc(scopeDisplay) + '</small></td>' +
+            '<td>' + (c.active ? '<button class="btn btn-xs btn-outline-danger" onclick="revokeClient(\'' + esc(c.clientId) + '\')"><i class="fas fa-ban"></i></button>' : '') + '</td>' +
+            '</tr>';
+        });
+        $('#connectorClientList').html(html || '<tr><td colspan="6" class="text-center text-muted p-4">No clients registered yet</td></tr>');
+
+        // Populate test client dropdown
+        $('#testClientSelect').html('<option value="">Select a client...</option>');
+        (res.data || []).filter(function(c){return c.active;}).forEach(function(c) {
+          $('#testClientSelect').append('<option value="' + esc(c.clientId) + '">' + esc(c.name) + '</option>');
+        });
+      });
+
+      // Load scope checkboxes
+      api('GET', '/api/oauth2/scopes').done(function(res) {
+        allScopes = res.data || [];
+        var html = '';
+        var lastContext = '';
+        allScopes.forEach(function(s) {
+          var context = s.split('/')[0];
+          if (context !== lastContext) {
+            if (lastContext) html += '</div>';
+            html += '<div class="mb-2"><strong class="text-muted text-uppercase" style="font-size:0.75em;">' + capitalize(context) + '-level Scopes</strong></div><div class="ml-2">';
+            lastContext = context;
+          }
+          var resource = s.split('/')[1].split('.')[0];
+          var perms = s.split('.')[1];
+          var permLabel = perms === 'rs' ? 'Read/Search' : 'Full CRUD';
+          html += '<div class="form-check"><input class="form-check-input scope-cb" type="checkbox" value="' + s + '" id="scope-' + s.replace(/[/.]/g,'-') + '"><label class="form-check-label" for="scope-' + s.replace(/[/.]/g,'-') + '">' + resource + ' <small class="text-muted">(' + permLabel + ')</small></label></div>';
+        });
+        html += '</div>';
+        $('#scopeCheckboxes').html(html);
+      });
+    }
+
+    function selectAllScopes(checked) {
+      $('.scope-cb').prop('checked', checked);
+    }
+
+    function registerClient() {
+      var name = $('#registerClientForm input[name="name"]').val();
+      if (!name) { alert('Application name is required'); return; }
+
+      var scopes = [];
+      $('.scope-cb:checked').each(function() { scopes.push($(this).val()); });
+      if (scopes.length === 0) { alert('Select at least one scope'); return; }
+
+      var grantTypes = [];
+      if ($('#grantCC').is(':checked')) grantTypes.push('client_credentials');
+      if (grantTypes.length === 0) grantTypes.push('client_credentials');
+
+      var data = {
+        name: name,
+        description: $('#registerClientForm input[name="description"]').val() || undefined,
+        redirectUri: $('#registerClientForm input[name="redirectUri"]').val() || undefined,
+        scopes: scopes,
+        grantTypes: grantTypes,
+      };
+
+      api('POST', '/api/oauth2/register', data).done(function(res) {
+        $('#newClientId').val(res.client_id);
+        $('#newClientSecret').val(res.client_secret);
+        $('#newClientCredentials').removeClass('d-none');
+        $('#registerClientForm')[0].reset();
+        selectAllScopes(false);
+        loadConnectors(); // refresh client list
+      }).fail(function(xhr) {
+        alert('Error: ' + (xhr.responseJSON?.message || 'Registration failed'));
+      });
+    }
+
+    function copyCredentials() {
+      var text = 'client_id=' + $('#newClientId').val() + '\nclient_secret=' + $('#newClientSecret').val();
+      navigator.clipboard.writeText(text).then(function() {
+        alert('Credentials copied to clipboard!');
+      });
+    }
+
+    function revokeClient(clientId) {
+      if (!confirm('Revoke this client? All its tokens will be invalidated.')) return;
+      api('DELETE', '/api/oauth2/clients/' + clientId).done(function() {
+        loadConnectors();
+      }).fail(function(xhr) {
+        alert('Error: ' + (xhr.responseJSON?.message || 'Failed'));
+      });
+    }
+
+    function introspectToken() {
+      var tokenVal = $('#introspectTokenInput').val().trim();
+      if (!tokenVal) { alert('Paste a token first'); return; }
+
+      $.ajax({
+        method: 'POST', url: '/oauth2/introspect',
+        contentType: 'application/json',
+        data: JSON.stringify({ token: tokenVal }),
+      }).done(function(res) {
+        if (res.active) {
+          var html = '<div class="mb-2"><span class="badge badge-success">Active</span></div>';
+          html += '<table class="table table-sm mb-0">';
+          html += '<tr><td class="text-muted">Client ID</td><td><code>' + esc(res.client_id) + '</code></td></tr>';
+          html += '<tr><td class="text-muted">Client Name</td><td>' + esc(res.client_name) + '</td></tr>';
+          html += '<tr><td class="text-muted">Scopes</td><td>';
+          res.scope.split(' ').forEach(function(s) {
+            html += '<span class="badge badge-light mr-1">' + esc(s) + '</span>';
+          });
+          html += '</td></tr>';
+          html += '<tr><td class="text-muted">Issued</td><td>' + new Date(res.iat * 1000).toLocaleString() + '</td></tr>';
+          html += '<tr><td class="text-muted">Expires</td><td>' + new Date(res.exp * 1000).toLocaleString() + '</td></tr>';
+          html += '</table>';
+          $('#introspectResult').html(html);
+        } else {
+          $('#introspectResult').html('<div class="text-center p-3"><span class="badge badge-danger">Inactive / Expired / Revoked</span><p class="text-muted mt-2">This token is not valid.</p></div>');
+        }
+      }).fail(function() {
+        $('#introspectResult').html('<div class="text-danger">Error inspecting token</div>');
+      });
+    }
+
+    function testGenerateToken() {
+      var clientId = $('#testClientSelect').val();
+      var clientSecret = $('#testClientSecret').val();
+      if (!clientId || !clientSecret) { alert('Select a client and enter the secret'); return; }
+
+      $.ajax({
+        method: 'POST', url: '/oauth2/token',
+        contentType: 'application/json',
+        data: JSON.stringify({ grant_type: 'client_credentials', client_id: clientId, client_secret: clientSecret }),
+      }).done(function(res) {
+        var html = '<div class="alert alert-success mb-2" style="font-size:0.85em;"><i class="fas fa-check"></i> Token generated! Expires in ' + res.expires_in + 's</div>';
+        html += '<div class="form-group mb-1"><label><small>Access Token</small></label><textarea class="form-control form-control-sm" rows="2" readonly onclick="this.select()">' + esc(res.access_token) + '</textarea></div>';
+        html += '<div><small class="text-muted">Scope: ' + esc(res.scope) + '</small></div>';
+        $('#testTokenResult').html(html);
+      }).fail(function(xhr) {
+        $('#testTokenResult').html('<div class="alert alert-danger" style="font-size:0.85em;">' + esc(xhr.responseJSON?.message || 'Failed') + '</div>');
+      });
     }
 
     // DICOM VIEWER (using daikon parser + canvas rendering)
