@@ -1,7 +1,9 @@
 import {
   Controller,
+  Get,
   Post,
   Body,
+  Param,
   UseGuards,
   HttpCode,
   Logger,
@@ -9,7 +11,10 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Hl7ParserService } from './hl7-parser.service.js';
+import { Hl7GeneratorService } from './hl7-generator.service.js';
 import { LabService } from '../lab/lab.service.js';
+import { PatientService } from '../patient/patient.service.js';
+import { UuidValidationPipe } from '../common/pipes/uuid-validation.pipe.js';
 
 @ApiTags('HL7')
 @ApiBearerAuth()
@@ -20,8 +25,36 @@ export class Hl7Controller {
 
   constructor(
     private readonly hl7Parser: Hl7ParserService,
+    private readonly hl7Generator: Hl7GeneratorService,
     private readonly labService: LabService,
+    private readonly patientService: PatientService,
   ) {}
+
+  @Get('generate/:orderUuid')
+  @ApiOperation({ summary: 'Generate HL7v2 ORM order message for a lab order' })
+  async generateOrder(@Param('orderUuid', UuidValidationPipe) orderUuid: string) {
+    const order = await this.labService.findOrderByUuid(orderUuid);
+    const codes = await this.labService.getOrderCodes(order.id);
+    const patient = await this.patientService.findById(order.patientId);
+
+    const hl7Message = this.hl7Generator.generateLabOrder(order, codes, {
+      firstName: patient.firstName,
+      lastName: patient.lastName,
+      dateOfBirth: patient.dateOfBirth,
+      sex: patient.sex,
+      mrn: patient.mrn,
+    });
+
+    return {
+      orderUuid: order.uuid,
+      orderId: order.id,
+      patientName: `${patient.lastName}, ${patient.firstName}`,
+      patientMrn: patient.mrn,
+      tests: codes.map((c) => `${c.procedureCode}: ${c.procedureName}`),
+      hl7Message,
+      segments: hl7Message.split('\r').filter(Boolean),
+    };
+  }
 
   @Post('receive')
   @HttpCode(200)

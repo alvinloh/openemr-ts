@@ -576,6 +576,17 @@ Authorization: Bearer &lt;token&gt;</pre>
     </div>
   </div>
 
+  <!-- Lab Detail / HL7 Modal -->
+  <div class="modal fade" id="labDetailModal">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title">Lab Order</h5><button class="close" data-dismiss="modal">&times;</button></div>
+        <div class="modal-body" id="labDetailContent"></div>
+        <div class="modal-footer"><button class="btn btn-secondary" data-dismiss="modal">Close</button></div>
+      </div>
+    </div>
+  </div>
+
   <!-- New Lab Order Modal -->
   <div class="modal fade" id="newLabModal">
     <div class="modal-dialog">
@@ -771,7 +782,9 @@ Authorization: Bearer &lt;token&gt;</pre>
       api('GET', '/api/procedure?patientId=' + pid).done(function(res) {
         var html = '';
         (res.data || []).forEach(function(l) {
-          html += '<tr><td>' + l.id + '</td><td>' + (l.orderDate||'-') + '</td><td>' + l.orderType + '</td><td><span class="badge badge-' + (l.status==='complete'?'success':'warning') + '">' + l.status + '</span></td><td><button class="btn btn-xs btn-outline-info" onclick="viewLabDetail(\'' + l.uuid + '\')">View</button></td><td></td></tr>';
+          html += '<tr><td>' + l.id + '</td><td>' + (l.orderDate||'-') + '</td><td>' + l.orderType + '</td><td><span class="badge badge-' + (l.status==='complete'?'success':'warning') + '">' + l.status + '</span></td>';
+          html += '<td><button class="btn btn-xs btn-outline-info mr-1" onclick="viewLabDetail(\'' + l.uuid + '\')"><i class="fas fa-eye"></i> View</button>';
+          html += '<button class="btn btn-xs btn-outline-success" onclick="generateHL7(\'' + l.uuid + '\')"><i class="fas fa-paper-plane"></i> HL7</button></td><td></td></tr>';
         });
         $('#patientLabList').html(html || '<tr><td colspan="6" class="text-muted">No lab orders</td></tr>');
       });
@@ -780,25 +793,61 @@ Authorization: Bearer &lt;token&gt;</pre>
     function viewLabDetail(uuid) {
       api('GET', '/api/procedure/' + uuid).done(function(res) {
         var d = res.data;
-        var msg = 'Order #' + d.id + ' (' + d.status + ')\n';
+        var html = '<h5>Order #' + d.id + ' ' + statusBadge(d.status) + '</h5>';
+        html += '<div class="text-muted mb-3">Date: ' + (d.orderDate||'-') + ' | Type: ' + d.orderType + ' | Priority: ' + (d.priority||'normal') + '</div>';
+
         if (d.codes && d.codes.length) {
-          msg += '\nTests:\n';
-          d.codes.forEach(function(c) { msg += '  - ' + c.procedureCode + ': ' + c.procedureName + '\n'; });
+          html += '<h6>Ordered Tests</h6><table class="table table-sm"><thead><tr><th>Code</th><th>Test</th></tr></thead><tbody>';
+          d.codes.forEach(function(c) { html += '<tr><td><code>' + esc(c.procedureCode) + '</code></td><td>' + esc(c.procedureName) + '</td></tr>'; });
+          html += '</tbody></table>';
         }
+
         if (d.reports && d.reports.length) {
           d.reports.forEach(function(r) {
-            msg += '\nReport (' + r.status + ', ' + (r.reportDate||'') + '):\n';
+            html += '<h6 class="mt-3">Results ' + statusBadge(r.status) + ' <small class="text-muted">' + (r.reportDate||'') + '</small></h6>';
             if (r.results && r.results.length) {
+              html += '<table class="table table-sm"><thead><tr><th>Test</th><th>Value</th><th>Units</th><th>Range</th><th>Flag</th></tr></thead><tbody>';
               r.results.forEach(function(res) {
-                var flag = res.abnormal && res.abnormal !== 'no' ? ' ⚠️' : '';
-                msg += '  ' + (res.resultText||res.resultCode) + ': ' + (res.value||'') + ' ' + (res.units||'') + ' [' + (res.referenceRange||'') + ']' + flag + '\n';
+                var flagClass = res.abnormal && res.abnormal !== 'no' ? 'text-danger font-weight-bold' : 'text-success';
+                html += '<tr><td>' + esc(res.resultText||res.resultCode||'') + '</td><td><strong>' + esc(res.value||'') + '</strong></td><td>' + esc(res.units||'') + '</td><td>' + esc(res.referenceRange||'') + '</td><td class="' + flagClass + '">' + esc(res.abnormal||'') + '</td></tr>';
               });
+              html += '</tbody></table>';
             }
           });
         } else {
-          msg += '\nNo results yet.';
+          html += '<div class="text-muted mt-3"><i class="fas fa-clock"></i> No results yet — awaiting lab report</div>';
         }
-        alert(msg);
+
+        $('#labDetailContent').html(html);
+        $('#labDetailModal').modal('show');
+      });
+    }
+
+    function generateHL7(uuid) {
+      api('GET', '/api/hl7/generate/' + uuid).done(function(res) {
+        var html = '<h5><i class="fas fa-paper-plane"></i> HL7v2 ORM Order Message</h5>';
+        html += '<div class="mb-3 text-muted">Patient: ' + esc(res.patientName) + ' (MRN: ' + esc(res.patientMrn) + ')</div>';
+
+        html += '<h6>Tests</h6><ul class="mb-3">';
+        (res.tests||[]).forEach(function(t) { html += '<li>' + esc(t) + '</li>'; });
+        html += '</ul>';
+
+        html += '<h6>HL7 Message Segments</h6>';
+        html += '<div class="bg-dark text-light p-3 rounded mb-3" style="font-family:monospace;font-size:0.85em;white-space:pre-wrap;word-break:break-all;">';
+        (res.segments||[]).forEach(function(seg) {
+          var segName = seg.substring(0, 3);
+          var color = {MSH:'#6cf',PID:'#fc6',PV1:'#ccc',ORC:'#f96',OBR:'#9f6'}[segName] || '#fff';
+          html += '<span style="color:' + color + ';">' + esc(seg) + '</span>\n';
+        });
+        html += '</div>';
+
+        html += '<div class="form-group"><label>Raw Message <small class="text-muted">(copy this to send to lab system)</small></label>';
+        html += '<textarea class="form-control" rows="4" readonly onclick="this.select()">' + esc(res.hl7Message.replace(/\r/g, '\n')) + '</textarea></div>';
+
+        $('#labDetailContent').html(html);
+        $('#labDetailModal').modal('show');
+      }).fail(function(xhr) {
+        alert('Error generating HL7: ' + (xhr.responseJSON?.message || 'Failed'));
       });
     }
 
