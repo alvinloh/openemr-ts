@@ -1,6 +1,6 @@
 import { Controller, Get, Param, Query, UseGuards, Req } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { OAuth2OrJwtGuard } from '../oauth2/guards/oauth2-or-jwt.guard.js';
 import { Request } from 'express';
 import { PatientService } from '../patient/patient.service.js';
 import { EncounterService } from '../encounter/encounter.service.js';
@@ -34,7 +34,7 @@ function buildBundle(resources: FhirResource[], baseUrl: string): FhirBundle {
 
 @ApiTags('FHIR R4')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(OAuth2OrJwtGuard)
 @Controller('fhir')
 export class FhirController {
   constructor(

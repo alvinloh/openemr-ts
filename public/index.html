@@ -82,7 +82,8 @@
             <a class="nav-link" href="#" data-page="labs"><i class="fas fa-flask"></i> Lab Orders</a>
             <a class="nav-link" href="#" data-page="billing"><i class="fas fa-file-invoice-dollar"></i> Billing</a>
             <a class="nav-link" href="#" data-page="fhir"><i class="fas fa-exchange-alt"></i> FHIR</a>
-            <a class="nav-link" href="/api/dicom/viewer" target="_blank"><i class="fas fa-x-ray"></i> DICOM Viewer</a>
+            <a class="nav-link" href="#" data-page="dicom"><i class="fas fa-x-ray"></i> DICOM Viewer</a>
+            <a class="nav-link" href="#" data-page="connectors"><i class="fas fa-plug"></i> Connectors</a>
             <a class="nav-link" href="/api-docs" target="_blank"><i class="fas fa-book"></i> API Docs</a>
           </nav>
         </div>
@@ -189,6 +190,7 @@
                     <div class="col-md-4 text-right">
                       <button class="btn btn-sm btn-outline-primary mr-1" onclick="showNewEncounterModal()"><i class="fas fa-plus"></i> New Encounter</button>
                       <button class="btn btn-sm btn-outline-success mr-1" onclick="showNewMedModal()"><i class="fas fa-pills"></i> Add Medication</button>
+                      <button class="btn btn-sm btn-outline-warning mr-1" onclick="showNewLabModal()"><i class="fas fa-flask"></i> Order Lab</button>
                     </div>
                   </div>
                 </div>
@@ -199,6 +201,7 @@
                 <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-meds">Medications</a></li>
                 <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-allergies">Allergies</a></li>
                 <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-conditions">Conditions</a></li>
+                <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-labs">Lab Orders</a></li>
               </ul>
               <div class="tab-content">
                 <div class="tab-pane fade show active" id="tab-encounters">
@@ -212,6 +215,9 @@
                 </div>
                 <div class="tab-pane fade" id="tab-conditions">
                   <table class="table table-sm"><thead><tr><th>Code</th><th>Title</th><th>Status</th><th>Onset</th></tr></thead><tbody id="conditionList"></tbody></table>
+                </div>
+                <div class="tab-pane fade" id="tab-labs">
+                  <table class="table table-sm"><thead><tr><th>Order ID</th><th>Date</th><th>Type</th><th>Status</th><th>Tests</th><th>Results</th></tr></thead><tbody id="patientLabList"></tbody></table>
                 </div>
               </div>
             </div>
@@ -247,6 +253,199 @@
               <p class="text-muted">Billing management — view billing entries, claims, and insurance. Use the API at <code>POST /api/patient/:pid/billing</code>.</p>
             </div>
 
+            <!-- DICOM PAGE -->
+            <div id="page-dicom" class="d-none">
+              <div class="row mb-3">
+                <div class="col-md-8">
+                  <div class="card">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                      <strong><i class="fas fa-x-ray"></i> DICOM Viewer</strong>
+                      <div>
+                        <input type="file" id="dicomFileInput" accept=".dcm,.dicom,application/dicom" style="display:none" onchange="loadDicomFile(event)">
+                        <button class="btn btn-sm btn-primary mr-1" onclick="$('#dicomFileInput').click()"><i class="fas fa-upload"></i> Open File</button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="loadSampleDicom()"><i class="fas fa-image"></i> Load Sample</button>
+                      </div>
+                    </div>
+                    <div class="card-body p-0 text-center" style="background:#000;min-height:500px;position:relative;">
+                      <div id="dicomPlaceholder" class="text-center" style="padding-top:180px;color:#666;">
+                        <i class="fas fa-x-ray" style="font-size:4em;opacity:0.3;"></i>
+                        <p class="mt-3">Load a DICOM file to view it here</p>
+                        <p><small>Use "Open File" for a local .dcm, or "Load Sample" for a demo</small></p>
+                      </div>
+                      <canvas id="dicomCanvas" style="display:none;max-width:100%;max-height:500px;"></canvas>
+                    </div>
+                  </div>
+                  <div class="card mt-2">
+                    <div class="card-body py-2 d-flex align-items-center">
+                      <label class="mb-0 mr-2"><small>Window:</small></label>
+                      <input type="range" id="dicomWindow" min="1" max="4096" value="2048" style="flex:1" oninput="applyWindowLevel()">
+                      <label class="mb-0 mx-2"><small>Level:</small></label>
+                      <input type="range" id="dicomLevel" min="-1024" max="3072" value="1024" style="flex:1" oninput="applyWindowLevel()">
+                      <button class="btn btn-sm btn-outline-secondary ml-2" onclick="resetWindowLevel()">Reset</button>
+                      <button class="btn btn-sm btn-outline-secondary ml-1" onclick="invertDicom()">Invert</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="card">
+                    <div class="card-header bg-white"><strong>Image Info</strong></div>
+                    <div class="card-body" id="dicomInfo">
+                      <div class="text-muted">No image loaded</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- CONNECTORS PAGE -->
+            <div id="page-connectors" class="d-none">
+              <!-- Tabs -->
+              <ul class="nav nav-tabs mb-3">
+                <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#conn-tab-clients">Registered Clients</a></li>
+                <li class="nav-item"><a class="nav-link" id="conn-tab-register-link" data-toggle="tab" href="#conn-tab-register">Register New Client</a></li>
+                <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#conn-tab-tokens">Token Tools</a></li>
+              </ul>
+              <div class="tab-content">
+                <!-- Client List Tab -->
+                <div class="tab-pane fade show active" id="conn-tab-clients">
+                  <div class="card table-card">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                      <strong><i class="fas fa-plug"></i> OAuth2 API Clients</strong>
+                      <button class="btn btn-sm btn-primary" onclick="$('#conn-tab-register-link').tab('show')"><i class="fas fa-plus"></i> Register Client</button>
+                    </div>
+                    <div class="card-body p-0">
+                      <table class="table table-hover mb-0">
+                        <thead class="thead-light">
+                          <tr><th>Name</th><th>Client ID</th><th>Status</th><th>Grant Types</th><th>Scopes</th><th></th></tr>
+                        </thead>
+                        <tbody id="connectorClientList"></tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Register New Client Tab -->
+                <div class="tab-pane fade" id="conn-tab-register">
+                  <div class="row">
+                    <div class="col-md-7">
+                      <div class="card">
+                        <div class="card-header bg-white"><strong>Register New API Client</strong></div>
+                        <div class="card-body">
+                          <form id="registerClientForm">
+                            <div class="form-group">
+                              <label>Application Name *</label>
+                              <input type="text" class="form-control" name="name" placeholder="e.g. Springfield Hospital EHR" required>
+                            </div>
+                            <div class="form-group">
+                              <label>Description</label>
+                              <input type="text" class="form-control" name="description" placeholder="Brief description of the connecting system">
+                            </div>
+                            <div class="form-group">
+                              <label>Redirect URI</label>
+                              <input type="text" class="form-control" name="redirectUri" placeholder="https://their-system.com/callback (optional)">
+                            </div>
+                            <div class="form-group">
+                              <label>Grant Types</label>
+                              <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="grant_client_credentials" id="grantCC" checked>
+                                <label class="form-check-label" for="grantCC">Client Credentials <small class="text-muted">(system-to-system, no user login)</small></label>
+                              </div>
+                            </div>
+                            <div class="form-group">
+                              <label>FHIR Scopes <button type="button" class="btn btn-xs btn-link" onclick="selectAllScopes(true)">Select All</button> <button type="button" class="btn btn-xs btn-link" onclick="selectAllScopes(false)">Clear</button></label>
+                              <div class="border rounded p-3" style="max-height:300px;overflow-y:auto;" id="scopeCheckboxes">
+                                <!-- Populated by JS -->
+                              </div>
+                            </div>
+                            <button type="button" class="btn btn-primary" onclick="registerClient()"><i class="fas fa-key"></i> Register Client</button>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-5">
+                      <div class="card bg-light">
+                        <div class="card-header bg-white"><strong>How It Works</strong></div>
+                        <div class="card-body" style="font-size:0.9em;">
+                          <p><strong>1. Register</strong> — Create a client and receive a <code>client_id</code> and <code>client_secret</code>.</p>
+                          <p><strong>2. Get Token</strong> — The external system sends credentials to <code>POST /oauth2/token</code>:</p>
+                          <pre class="bg-dark text-light p-2 rounded" style="font-size:0.85em;">{
+  "grant_type": "client_credentials",
+  "client_id": "...",
+  "client_secret": "...",
+  "scope": "patient/Patient.rs"
+}</pre>
+                          <p><strong>3. Query FHIR</strong> — Use the access token as a Bearer token:</p>
+                          <pre class="bg-dark text-light p-2 rounded" style="font-size:0.85em;">GET /fhir/Patient
+Authorization: Bearer &lt;token&gt;</pre>
+                          <p class="text-muted mb-0">Tokens expire after 1 hour. The system can request a new one at any time.</p>
+                        </div>
+                      </div>
+                      <!-- Credentials display (shown after registration) -->
+                      <div class="card mt-3 d-none" id="newClientCredentials">
+                        <div class="card-header bg-success text-white"><strong><i class="fas fa-check-circle"></i> Client Registered</strong></div>
+                        <div class="card-body">
+                          <div class="alert alert-warning mb-2" style="font-size:0.85em;">
+                            <i class="fas fa-exclamation-triangle"></i> Save the <strong>client_secret</strong> now — it will not be shown again!
+                          </div>
+                          <div class="form-group">
+                            <label><small>Client ID</small></label>
+                            <input type="text" class="form-control form-control-sm" id="newClientId" readonly onclick="this.select()">
+                          </div>
+                          <div class="form-group">
+                            <label><small>Client Secret</small></label>
+                            <textarea class="form-control form-control-sm" id="newClientSecret" rows="2" readonly onclick="this.select()"></textarea>
+                          </div>
+                          <button class="btn btn-sm btn-outline-secondary" onclick="copyCredentials()"><i class="fas fa-copy"></i> Copy Both</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Token Tools Tab -->
+                <div class="tab-pane fade" id="conn-tab-tokens">
+                  <div class="row">
+                    <div class="col-md-6">
+                      <div class="card">
+                        <div class="card-header bg-white"><strong>Token Introspection</strong></div>
+                        <div class="card-body">
+                          <div class="form-group">
+                            <label>Paste an access token to inspect</label>
+                            <textarea class="form-control" id="introspectTokenInput" rows="3" placeholder="eyJhbGciOiJIUzI1NiIs..."></textarea>
+                          </div>
+                          <button class="btn btn-primary btn-sm" onclick="introspectToken()"><i class="fas fa-search"></i> Inspect Token</button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="card">
+                        <div class="card-header bg-white"><strong>Result</strong></div>
+                        <div class="card-body" id="introspectResult">
+                          <div class="text-muted">Paste a token and click Inspect</div>
+                        </div>
+                      </div>
+                      <div class="card mt-3">
+                        <div class="card-header bg-white"><strong>Quick Test</strong></div>
+                        <div class="card-body">
+                          <p class="mb-2" style="font-size:0.9em;">Generate a token for a registered client:</p>
+                          <div class="form-group">
+                            <select class="form-control form-control-sm" id="testClientSelect">
+                              <option value="">Select a client...</option>
+                            </select>
+                          </div>
+                          <div class="form-group">
+                            <input type="text" class="form-control form-control-sm" id="testClientSecret" placeholder="Client Secret">
+                          </div>
+                          <button class="btn btn-sm btn-success" onclick="testGenerateToken()"><i class="fas fa-play"></i> Generate Token</button>
+                          <div id="testTokenResult" class="mt-2"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- FHIR PAGE -->
             <div id="page-fhir" class="d-none">
               <h5>FHIR R4 API Explorer</h5>
@@ -271,7 +470,20 @@
                   <button class="btn btn-primary btn-block" onclick="queryFhir()"><i class="fas fa-play"></i> Query</button>
                 </div>
               </div>
-              <pre id="fhirResult" class="bg-dark text-light p-3 rounded" style="max-height:500px;overflow:auto;font-size:0.85em;">Select a resource and click Query</pre>
+              <ul class="nav nav-tabs" id="fhirResultTabs">
+                <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#fhir-tab-readable"><i class="fas fa-user"></i> Readable</a></li>
+                <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#fhir-tab-raw"><i class="fas fa-code"></i> Raw FHIR</a></li>
+              </ul>
+              <div class="tab-content">
+                <div class="tab-pane fade show active" id="fhir-tab-readable">
+                  <div id="fhirReadable" class="p-3 border border-top-0 rounded-bottom" style="max-height:500px;overflow:auto;background:#fafbfc;">
+                    <div class="text-muted text-center p-4">Select a resource and click Query</div>
+                  </div>
+                </div>
+                <div class="tab-pane fade" id="fhir-tab-raw">
+                  <pre id="fhirResult" class="bg-dark text-light p-3 rounded-bottom mb-0" style="max-height:500px;overflow:auto;font-size:0.85em;margin-top:0;border-top-left-radius:0;border-top-right-radius:0;">Select a resource and click Query</pre>
+                </div>
+              </div>
             </div>
 
           </div>
@@ -364,6 +576,48 @@
     </div>
   </div>
 
+  <!-- New Lab Order Modal -->
+  <div class="modal fade" id="newLabModal">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title">Order Lab Test</h5><button class="close" data-dismiss="modal">&times;</button></div>
+        <div class="modal-body">
+          <form id="newLabForm">
+            <div class="form-group">
+              <label>Test *</label>
+              <select class="form-control" name="testSelect" onchange="fillLabCode(this)">
+                <option value="">-- Select a common test --</option>
+                <option value="85025|CBC with differential">CBC with Differential (85025)</option>
+                <option value="80053|Comprehensive metabolic panel">Comprehensive Metabolic Panel (80053)</option>
+                <option value="80048|Basic metabolic panel">Basic Metabolic Panel (80048)</option>
+                <option value="2093-3|Total Cholesterol">Total Cholesterol (2093-3)</option>
+                <option value="4548-4|Hemoglobin A1c">Hemoglobin A1c (4548-4)</option>
+                <option value="3016-3|TSH">Thyroid TSH (3016-3)</option>
+                <option value="2160-0|Creatinine">Creatinine (2160-0)</option>
+                <option value="1742-6|ALT">ALT / SGPT (1742-6)</option>
+                <option value="custom">Custom test...</option>
+              </select>
+            </div>
+            <div class="row">
+              <div class="col-md-6 form-group"><label>Procedure Code</label><input type="text" class="form-control" name="procedureCode" id="labProcCode"></div>
+              <div class="col-md-6 form-group"><label>Procedure Name</label><input type="text" class="form-control" name="procedureName" id="labProcName"></div>
+            </div>
+            <div class="row">
+              <div class="col-md-6 form-group"><label>Priority</label><select class="form-control" name="priority"><option value="normal">Normal</option><option value="stat">STAT</option><option value="urgent">Urgent</option></select></div>
+              <div class="col-md-6 form-group"><label>Order Date</label><input type="date" class="form-control" name="orderDate"></div>
+            </div>
+            <div class="form-group"><label>Clinical History</label><textarea class="form-control" name="clinicalHistory" rows="2" placeholder="Relevant clinical information..."></textarea></div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+          <button class="btn btn-warning" onclick="createLabOrder()"><i class="fas fa-flask"></i> Submit Order</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/dicom-parser@1.8.21/dist/dicomParser.min.js"></script>
   <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
   <script>
@@ -431,11 +685,12 @@
       $('.sidebar .nav-link[data-page="' + page + '"]').addClass('active');
       $('[id^="page-"]').addClass('d-none');
       $('#page-' + page).removeClass('d-none');
-      var titles = { home:'Dashboard', patients:'Patients', scheduling:'Scheduling', labs:'Lab Orders', billing:'Billing', fhir:'FHIR Explorer', 'patient-detail':'Patient Detail' };
+      var titles = { home:'Dashboard', patients:'Patients', scheduling:'Scheduling', labs:'Lab Orders', billing:'Billing', dicom:'DICOM Viewer', fhir:'FHIR Explorer', connectors:'Connectors', 'patient-detail':'Patient Detail' };
       $('#pageTitle').text(titles[page] || page);
       if (page === 'home') loadDashboard();
       if (page === 'patients') searchPatients();
       if (page === 'labs') loadLabs();
+      if (page === 'connectors') loadConnectors();
     }
 
     // PATIENTS
@@ -512,6 +767,39 @@
         });
         $('#conditionList').html(html || '<tr><td colspan="4" class="text-muted">No conditions recorded</td></tr>');
       });
+      // Lab Orders
+      api('GET', '/api/procedure?patientId=' + pid).done(function(res) {
+        var html = '';
+        (res.data || []).forEach(function(l) {
+          html += '<tr><td>' + l.id + '</td><td>' + (l.orderDate||'-') + '</td><td>' + l.orderType + '</td><td><span class="badge badge-' + (l.status==='complete'?'success':'warning') + '">' + l.status + '</span></td><td><button class="btn btn-xs btn-outline-info" onclick="viewLabDetail(\'' + l.uuid + '\')">View</button></td><td></td></tr>';
+        });
+        $('#patientLabList').html(html || '<tr><td colspan="6" class="text-muted">No lab orders</td></tr>');
+      });
+    }
+
+    function viewLabDetail(uuid) {
+      api('GET', '/api/procedure/' + uuid).done(function(res) {
+        var d = res.data;
+        var msg = 'Order #' + d.id + ' (' + d.status + ')\n';
+        if (d.codes && d.codes.length) {
+          msg += '\nTests:\n';
+          d.codes.forEach(function(c) { msg += '  - ' + c.procedureCode + ': ' + c.procedureName + '\n'; });
+        }
+        if (d.reports && d.reports.length) {
+          d.reports.forEach(function(r) {
+            msg += '\nReport (' + r.status + ', ' + (r.reportDate||'') + '):\n';
+            if (r.results && r.results.length) {
+              r.results.forEach(function(res) {
+                var flag = res.abnormal && res.abnormal !== 'no' ? ' ⚠️' : '';
+                msg += '  ' + (res.resultText||res.resultCode) + ': ' + (res.value||'') + ' ' + (res.units||'') + ' [' + (res.referenceRange||'') + ']' + flag + '\n';
+              });
+            }
+          });
+        } else {
+          msg += '\nNo results yet.';
+        }
+        alert(msg);
+      });
     }
 
     function showNewEncounterModal() { $('#newEncounterForm')[0].reset(); $('#newEncounterModal').modal('show'); }
@@ -535,6 +823,48 @@
       }).fail(function(xhr) { alert('Error: ' + (xhr.responseJSON?.message || 'Failed')); });
     }
 
+    // LAB ORDER
+    function showNewLabModal() {
+      $('#newLabForm')[0].reset();
+      $('#labProcCode').val('');
+      $('#labProcName').val('');
+      $('#newLabForm input[name="orderDate"]').val(new Date().toISOString().split('T')[0]);
+      $('#newLabModal').modal('show');
+    }
+
+    function fillLabCode(sel) {
+      var val = sel.value;
+      if (val && val !== 'custom') {
+        var parts = val.split('|');
+        $('#labProcCode').val(parts[0]);
+        $('#labProcName').val(parts[1]);
+      } else {
+        $('#labProcCode').val('');
+        $('#labProcName').val('');
+      }
+    }
+
+    function createLabOrder() {
+      var code = $('#labProcCode').val();
+      var name = $('#labProcName').val();
+      if (!code || !name) { alert('Please select or enter a test'); return; }
+
+      var data = {
+        patientId: currentPatient.id,
+        providerId: 1,
+        orderDate: $('#newLabForm input[name="orderDate"]').val() || new Date().toISOString().split('T')[0],
+        priority: $('#newLabForm select[name="priority"]').val(),
+        clinicalHistory: $('#newLabForm textarea[name="clinicalHistory"]').val() || null,
+        codes: [{ procedureCode: code, procedureName: name }],
+      };
+
+      api('POST', '/api/procedure', data).done(function() {
+        $('#newLabModal').modal('hide');
+        loadPatientData();
+        loadLabs();
+      }).fail(function(xhr) { alert('Error: ' + (xhr.responseJSON?.message || 'Failed')); });
+    }
+
     // LABS
     function loadLabs() {
       api('GET', '/api/procedure').done(function(res) {
@@ -553,9 +883,838 @@
       var url = '/fhir/' + resource + (params ? '?' + params : '');
       api('GET', url).done(function(res) {
         $('#fhirResult').text(JSON.stringify(res, null, 2));
+        $('#fhirReadable').html(renderFhirReadable(res));
+        // Switch to readable tab
+        $('#fhirResultTabs a[href="#fhir-tab-readable"]').tab('show');
       }).fail(function(xhr) {
         $('#fhirResult').text('Error: ' + xhr.status + '\n' + JSON.stringify(xhr.responseJSON, null, 2));
+        $('#fhirReadable').html('<div class="alert alert-danger">Error ' + xhr.status + ': ' + (xhr.responseJSON?.message || 'Request failed') + '</div>');
       });
+    }
+
+    function renderFhirReadable(data) {
+      if (!data || !data.resourceType) return '<div class="text-muted">No data</div>';
+
+      // Bundle — render each entry
+      if (data.resourceType === 'Bundle') {
+        var html = '<div class="mb-2"><strong>' + (data.total || 0) + ' result(s)</strong></div>';
+        if (!data.entry || data.entry.length === 0) {
+          return html + '<div class="text-muted p-3">No matching records found.</div>';
+        }
+        data.entry.forEach(function(e, i) {
+          html += '<div class="card mb-2"><div class="card-body p-3">' + renderFhirResource(e.resource) + '</div></div>';
+        });
+        return html;
+      }
+
+      // Single resource
+      return '<div class="card"><div class="card-body p-3">' + renderFhirResource(data) + '</div></div>';
+    }
+
+    function renderFhirResource(r) {
+      if (!r) return '';
+      var type = r.resourceType;
+      var html = '<div class="d-flex justify-content-between align-items-start mb-2"><span class="badge badge-primary">' + type + '</span><small class="text-muted">' + (r.id || '') + '</small></div>';
+
+      switch (type) {
+        case 'Patient': html += renderPatient(r); break;
+        case 'Encounter': html += renderEncounter(r); break;
+        case 'Observation': html += renderObservation(r); break;
+        case 'MedicationRequest': html += renderMedicationRequest(r); break;
+        case 'Condition': html += renderCondition(r); break;
+        case 'AllergyIntolerance': html += renderAllergy(r); break;
+        case 'Appointment': html += renderAppointment(r); break;
+        case 'DocumentReference': html += renderDocumentRef(r); break;
+        case 'CapabilityStatement': html += renderCapabilityStatement(r); break;
+        default: html += '<pre class="mb-0" style="font-size:0.8em;">' + JSON.stringify(r, null, 2) + '</pre>';
+      }
+      return html;
+    }
+
+    function renderPatient(r) {
+      var name = (r.name && r.name[0]) ? ((r.name[0].prefix||[]).join(' ') + ' ' + (r.name[0].given||[]).join(' ') + ' ' + (r.name[0].family||'')).trim() : 'Unknown';
+      var html = '<h5 class="mb-1">' + esc(name) + '</h5>';
+      html += '<div class="text-muted mb-2">';
+      if (r.gender) html += capitalize(r.gender);
+      if (r.birthDate) html += ' &bull; Born ' + r.birthDate;
+      if (r.active !== undefined) html += ' &bull; ' + (r.active ? '<span class="text-success">Active</span>' : '<span class="text-danger">Inactive</span>');
+      html += '</div>';
+
+      if (r.identifier && r.identifier.length) {
+        html += '<div class="mb-2">';
+        r.identifier.forEach(function(id) { html += '<span class="badge badge-light mr-1">MRN: ' + esc(id.value||'') + '</span>'; });
+        html += '</div>';
+      }
+
+      if (r.telecom && r.telecom.length) {
+        html += '<div class="mb-1"><strong>Contact:</strong> ';
+        r.telecom.forEach(function(t) {
+          var icon = t.system === 'phone' ? '📞' : t.system === 'email' ? '✉️' : '📱';
+          html += icon + ' ' + esc(t.value||'') + ' (' + (t.use||t.system) + ') &nbsp; ';
+        });
+        html += '</div>';
+      }
+
+      if (r.address && r.address.length) {
+        var a = r.address[0];
+        var parts = [(a.line||[]).join(', '), a.city, a.state, a.postalCode, a.country].filter(Boolean);
+        if (parts.length) html += '<div class="mb-1"><strong>Address:</strong> ' + esc(parts.join(', ')) + '</div>';
+      }
+
+      if (r.maritalStatus && r.maritalStatus.coding) {
+        html += '<div class="mb-1"><strong>Marital Status:</strong> ' + esc(r.maritalStatus.coding[0].code||'') + '</div>';
+      }
+
+      if (r.communication && r.communication.length) {
+        var lang = r.communication[0].language?.coding?.[0]?.code;
+        if (lang) html += '<div class="mb-1"><strong>Language:</strong> ' + esc(lang) + '</div>';
+      }
+
+      return html;
+    }
+
+    function renderEncounter(r) {
+      var html = '<div class="row">';
+      html += '<div class="col-md-6">';
+      html += '<div><strong>Status:</strong> ' + statusBadge(r.status) + '</div>';
+      html += '<div><strong>Class:</strong> ' + esc(r.class?.display || r.class?.code || '-') + '</div>';
+      if (r.period) {
+        html += '<div><strong>Date:</strong> ' + formatDate(r.period.start);
+        if (r.period.end) html += ' to ' + formatDate(r.period.end);
+        html += '</div>';
+      }
+      html += '</div><div class="col-md-6">';
+      if (r.subject) html += '<div><strong>Patient:</strong> ' + esc(r.subject.reference||'') + '</div>';
+      if (r.participant && r.participant.length) {
+        html += '<div><strong>Provider:</strong> ' + esc(r.participant[0].individual?.reference||'') + '</div>';
+      }
+      html += '</div></div>';
+      if (r.reasonCode && r.reasonCode.length) {
+        html += '<div class="mt-2"><strong>Reason:</strong> ' + esc(r.reasonCode[0].text || r.reasonCode[0].coding?.[0]?.display || '-') + '</div>';
+      }
+      return html;
+    }
+
+    function renderObservation(r) {
+      var category = r.category?.[0]?.coding?.[0]?.code || 'unknown';
+      var catLabel = category === 'vital-signs' ? 'Vital Sign' : category === 'laboratory' ? 'Lab Result' : capitalize(category);
+      var codeName = r.code?.text || r.code?.coding?.[0]?.display || 'Unknown';
+      var codeVal = r.code?.coding?.[0]?.code || '';
+      var html = '<div class="d-flex justify-content-between">';
+      html += '<div><strong>' + esc(codeName) + '</strong> <small class="text-muted">(' + esc(codeVal) + ')</small></div>';
+      html += '<span class="badge badge-' + (category==='vital-signs'?'info':'success') + '">' + catLabel + '</span>';
+      html += '</div>';
+
+      if (r.valueQuantity) {
+        html += '<div style="font-size:1.4em;font-weight:700;margin:4px 0;">' + r.valueQuantity.value + ' <small class="text-muted" style="font-weight:400;">' + esc(r.valueQuantity.unit||'') + '</small></div>';
+      } else if (r.valueString) {
+        html += '<div style="font-size:1.2em;font-weight:600;margin:4px 0;">' + esc(r.valueString) + '</div>';
+      }
+
+      var details = [];
+      if (r.effectiveDateTime) details.push('Date: ' + formatDate(r.effectiveDateTime));
+      if (r.referenceRange && r.referenceRange.length) details.push('Range: ' + esc(r.referenceRange[0].text||''));
+      if (r.interpretation && r.interpretation.length) {
+        var interp = r.interpretation[0].coding?.[0]?.code;
+        if (interp) details.push('Flag: <span class="text-' + (interp==='N'?'success':'danger') + ' font-weight-bold">' + esc(interp) + '</span>');
+      }
+      if (r.subject) details.push('Patient: ' + esc(r.subject.reference||''));
+      if (details.length) html += '<div class="text-muted" style="font-size:0.9em;">' + details.join(' &bull; ') + '</div>';
+
+      return html;
+    }
+
+    function renderMedicationRequest(r) {
+      var drugName = r.medicationCodeableConcept?.text || r.medicationCodeableConcept?.coding?.[0]?.display || 'Unknown drug';
+      var rxnorm = r.medicationCodeableConcept?.coding?.[0]?.code || '';
+      var html = '<div class="d-flex justify-content-between"><strong>' + esc(drugName) + '</strong>' + statusBadge(r.status) + '</div>';
+      if (rxnorm) html += '<div class="text-muted mb-1"><small>RxNorm: ' + esc(rxnorm) + ' &bull; Intent: ' + esc(r.intent||'') + '</small></div>';
+
+      if (r.dosageInstruction && r.dosageInstruction.length) {
+        var d = r.dosageInstruction[0];
+        html += '<div class="mt-1"><strong>Dosage:</strong> ' + esc(d.text||'-') + '</div>';
+      }
+
+      if (r.dispenseRequest) {
+        var parts = [];
+        if (r.dispenseRequest.quantity) parts.push('Qty: ' + r.dispenseRequest.quantity.value + ' ' + (r.dispenseRequest.quantity.unit||''));
+        if (r.dispenseRequest.numberOfRepeatsAllowed) parts.push('Refills: ' + r.dispenseRequest.numberOfRepeatsAllowed);
+        if (parts.length) html += '<div class="text-muted"><small>' + parts.join(' &bull; ') + '</small></div>';
+      }
+
+      var refs = [];
+      if (r.subject) refs.push('Patient: ' + r.subject.reference);
+      if (r.requester) refs.push('Prescriber: ' + r.requester.reference);
+      if (refs.length) html += '<div class="text-muted mt-1"><small>' + refs.join(' &bull; ') + '</small></div>';
+
+      return html;
+    }
+
+    function renderCondition(r) {
+      var name = r.code?.text || r.code?.coding?.[0]?.display || 'Unknown';
+      var code = r.code?.coding?.[0]?.code || '';
+      var status = r.clinicalStatus?.coding?.[0]?.code || 'unknown';
+      var html = '<div class="d-flex justify-content-between"><div><strong>' + esc(name) + '</strong> <small class="text-muted">(' + esc(code) + ')</small></div>' + statusBadge(status) + '</div>';
+      var details = [];
+      if (r.onsetDateTime) details.push('Onset: ' + formatDate(r.onsetDateTime));
+      if (r.abatementDateTime) details.push('Resolved: ' + formatDate(r.abatementDateTime));
+      if (r.subject) details.push('Patient: ' + r.subject.reference);
+      if (details.length) html += '<div class="text-muted"><small>' + details.join(' &bull; ') + '</small></div>';
+      return html;
+    }
+
+    function renderAllergy(r) {
+      var substance = r.code?.text || r.code?.coding?.[0]?.display || 'Unknown';
+      var status = r.clinicalStatus?.coding?.[0]?.code || 'unknown';
+      var html = '<div class="d-flex justify-content-between"><strong>' + esc(substance) + '</strong>' + statusBadge(status) + '</div>';
+      if (r.reaction && r.reaction.length) {
+        var rx = r.reaction[0];
+        var parts = [];
+        if (rx.manifestation && rx.manifestation.length) parts.push('Reaction: ' + esc(rx.manifestation[0].text || rx.manifestation[0].coding?.[0]?.display || ''));
+        if (rx.severity) parts.push('Severity: <span class="font-weight-bold text-' + (rx.severity==='severe'?'danger':rx.severity==='moderate'?'warning':'muted') + '">' + capitalize(rx.severity) + '</span>');
+        if (parts.length) html += '<div>' + parts.join(' &bull; ') + '</div>';
+      }
+      if (r.onsetDateTime) html += '<div class="text-muted"><small>Onset: ' + formatDate(r.onsetDateTime) + '</small></div>';
+      return html;
+    }
+
+    function renderAppointment(r) {
+      var html = '<div class="d-flex justify-content-between">';
+      html += '<div><strong>' + esc(r.description || 'Appointment') + '</strong></div>';
+      html += statusBadge(r.status);
+      html += '</div>';
+      var details = [];
+      if (r.start) details.push('Start: ' + formatDate(r.start));
+      if (r.end) details.push('End: ' + formatDate(r.end));
+      if (r.minutesDuration) details.push('Duration: ' + r.minutesDuration + ' min');
+      if (details.length) html += '<div>' + details.join(' &bull; ') + '</div>';
+      if (r.participant && r.participant.length) {
+        html += '<div class="text-muted mt-1"><small>';
+        r.participant.forEach(function(p) { html += esc(p.actor?.reference || p.actor?.display || '') + ' &nbsp; '; });
+        html += '</small></div>';
+      }
+      return html;
+    }
+
+    function renderDocumentRef(r) {
+      var html = '<div class="d-flex justify-content-between"><strong>' + esc(r.content?.[0]?.attachment?.title || 'Document') + '</strong>' + statusBadge(r.status) + '</div>';
+      if (r.content && r.content.length) {
+        var att = r.content[0].attachment || {};
+        var details = [];
+        if (att.contentType) details.push('Type: ' + esc(att.contentType));
+        if (att.size) details.push('Size: ' + formatBytes(att.size));
+        if (details.length) html += '<div class="text-muted"><small>' + details.join(' &bull; ') + '</small></div>';
+      }
+      if (r.date) html += '<div class="text-muted"><small>Uploaded: ' + formatDate(r.date) + '</small></div>';
+      return html;
+    }
+
+    function renderCapabilityStatement(r) {
+      var html = '<h5>FHIR Server</h5>';
+      html += '<div><strong>FHIR Version:</strong> ' + esc(r.fhirVersion) + '</div>';
+      html += '<div><strong>Status:</strong> ' + statusBadge(r.status) + '</div>';
+      html += '<div><strong>Formats:</strong> ' + (r.format||[]).join(', ') + '</div>';
+      if (r.rest && r.rest.length) {
+        html += '<h6 class="mt-3">Supported Resources (' + r.rest[0].resource.length + ')</h6>';
+        html += '<table class="table table-sm table-bordered mb-0"><thead><tr><th>Resource</th><th>Operations</th><th>Search Parameters</th></tr></thead><tbody>';
+        r.rest[0].resource.forEach(function(res) {
+          var ops = (res.interaction||[]).map(function(i){return '<span class="badge badge-outline-secondary mr-1">'+i.code+'</span>';}).join('');
+          var params = (res.searchParam||[]).map(function(p){return p.name;}).join(', ');
+          html += '<tr><td><strong>' + esc(res.type) + '</strong></td><td>' + ops + '</td><td><small>' + esc(params) + '</small></td></tr>';
+        });
+        html += '</tbody></table>';
+      }
+      return html;
+    }
+
+    // Helpers
+    function esc(s) { return $('<span>').text(s||'').html(); }
+    function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+    function formatDate(s) { if (!s) return '-'; try { return new Date(s).toLocaleString(); } catch(e) { return s; } }
+    function formatBytes(b) { if (b < 1024) return b + ' B'; if (b < 1048576) return (b/1024).toFixed(1) + ' KB'; return (b/1048576).toFixed(1) + ' MB'; }
+    function statusBadge(status) {
+      var colors = { active:'success', 'in-progress':'info', finished:'secondary', completed:'secondary', fulfilled:'secondary', cancelled:'danger', stopped:'danger', noshow:'danger', booked:'primary', arrived:'info', pending:'warning', proposed:'light', unknown:'light', current:'success' };
+      return '<span class="badge badge-' + (colors[status]||'light') + '">' + capitalize(status||'unknown') + '</span>';
+    }
+
+    // CONNECTORS
+    var allScopes = [];
+
+    function loadConnectors() {
+      // Load client list
+      api('GET', '/api/oauth2/clients').done(function(res) {
+        var html = '';
+        (res.data || []).forEach(function(c) {
+          var scopeList = (c.scopes||'').split(',');
+          var scopeDisplay = scopeList.slice(0, 3).join(', ');
+          if (scopeList.length > 3) scopeDisplay += ' +' + (scopeList.length - 3) + ' more';
+          html += '<tr>' +
+            '<td><strong>' + esc(c.name) + '</strong>' + (c.description ? '<br><small class="text-muted">' + esc(c.description) + '</small>' : '') + '</td>' +
+            '<td><code style="font-size:0.8em;">' + esc(c.clientId) + '</code></td>' +
+            '<td>' + (c.active ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-danger">Revoked</span>') + '</td>' +
+            '<td><small>' + esc(c.grantTypes) + '</small></td>' +
+            '<td><small>' + esc(scopeDisplay) + '</small></td>' +
+            '<td>' + (c.active ? '<button class="btn btn-xs btn-outline-danger" onclick="revokeClient(\'' + esc(c.clientId) + '\')"><i class="fas fa-ban"></i></button>' : '') + '</td>' +
+            '</tr>';
+        });
+        $('#connectorClientList').html(html || '<tr><td colspan="6" class="text-center text-muted p-4">No clients registered yet</td></tr>');
+
+        // Populate test client dropdown
+        $('#testClientSelect').html('<option value="">Select a client...</option>');
+        (res.data || []).filter(function(c){return c.active;}).forEach(function(c) {
+          $('#testClientSelect').append('<option value="' + esc(c.clientId) + '">' + esc(c.name) + '</option>');
+        });
+      });
+
+      // Load scope checkboxes
+      api('GET', '/api/oauth2/scopes').done(function(res) {
+        allScopes = res.data || [];
+        var html = '';
+        var lastContext = '';
+        allScopes.forEach(function(s) {
+          var context = s.split('/')[0];
+          if (context !== lastContext) {
+            if (lastContext) html += '</div>';
+            html += '<div class="mb-2"><strong class="text-muted text-uppercase" style="font-size:0.75em;">' + capitalize(context) + '-level Scopes</strong></div><div class="ml-2">';
+            lastContext = context;
+          }
+          var resource = s.split('/')[1].split('.')[0];
+          var perms = s.split('.')[1];
+          var permLabel = perms === 'rs' ? 'Read/Search' : 'Full CRUD';
+          html += '<div class="form-check"><input class="form-check-input scope-cb" type="checkbox" value="' + s + '" id="scope-' + s.replace(/[/.]/g,'-') + '"><label class="form-check-label" for="scope-' + s.replace(/[/.]/g,'-') + '">' + resource + ' <small class="text-muted">(' + permLabel + ')</small></label></div>';
+        });
+        html += '</div>';
+        $('#scopeCheckboxes').html(html);
+      });
+    }
+
+    function selectAllScopes(checked) {
+      $('.scope-cb').prop('checked', checked);
+    }
+
+    function registerClient() {
+      var name = $('#registerClientForm input[name="name"]').val();
+      if (!name) { alert('Application name is required'); return; }
+
+      var scopes = [];
+      $('.scope-cb:checked').each(function() { scopes.push($(this).val()); });
+      if (scopes.length === 0) { alert('Select at least one scope'); return; }
+
+      var grantTypes = [];
+      if ($('#grantCC').is(':checked')) grantTypes.push('client_credentials');
+      if (grantTypes.length === 0) grantTypes.push('client_credentials');
+
+      var data = {
+        name: name,
+        description: $('#registerClientForm input[name="description"]').val() || undefined,
+        redirectUri: $('#registerClientForm input[name="redirectUri"]').val() || undefined,
+        scopes: scopes,
+        grantTypes: grantTypes,
+      };
+
+      api('POST', '/api/oauth2/register', data).done(function(res) {
+        $('#newClientId').val(res.client_id);
+        $('#newClientSecret').val(res.client_secret);
+        $('#newClientCredentials').removeClass('d-none');
+        $('#registerClientForm')[0].reset();
+        selectAllScopes(false);
+        loadConnectors(); // refresh client list
+      }).fail(function(xhr) {
+        alert('Error: ' + (xhr.responseJSON?.message || 'Registration failed'));
+      });
+    }
+
+    function copyCredentials() {
+      var text = 'client_id=' + $('#newClientId').val() + '\nclient_secret=' + $('#newClientSecret').val();
+      navigator.clipboard.writeText(text).then(function() {
+        alert('Credentials copied to clipboard!');
+      });
+    }
+
+    function revokeClient(clientId) {
+      if (!confirm('Revoke this client? All its tokens will be invalidated.')) return;
+      api('DELETE', '/api/oauth2/clients/' + clientId).done(function() {
+        loadConnectors();
+      }).fail(function(xhr) {
+        alert('Error: ' + (xhr.responseJSON?.message || 'Failed'));
+      });
+    }
+
+    function introspectToken() {
+      var tokenVal = $('#introspectTokenInput').val().trim();
+      if (!tokenVal) { alert('Paste a token first'); return; }
+
+      $.ajax({
+        method: 'POST', url: '/oauth2/introspect',
+        contentType: 'application/json',
+        data: JSON.stringify({ token: tokenVal }),
+      }).done(function(res) {
+        if (res.active) {
+          var html = '<div class="mb-2"><span class="badge badge-success">Active</span></div>';
+          html += '<table class="table table-sm mb-0">';
+          html += '<tr><td class="text-muted">Client ID</td><td><code>' + esc(res.client_id) + '</code></td></tr>';
+          html += '<tr><td class="text-muted">Client Name</td><td>' + esc(res.client_name) + '</td></tr>';
+          html += '<tr><td class="text-muted">Scopes</td><td>';
+          res.scope.split(' ').forEach(function(s) {
+            html += '<span class="badge badge-light mr-1">' + esc(s) + '</span>';
+          });
+          html += '</td></tr>';
+          html += '<tr><td class="text-muted">Issued</td><td>' + new Date(res.iat * 1000).toLocaleString() + '</td></tr>';
+          html += '<tr><td class="text-muted">Expires</td><td>' + new Date(res.exp * 1000).toLocaleString() + '</td></tr>';
+          html += '</table>';
+          $('#introspectResult').html(html);
+        } else {
+          $('#introspectResult').html('<div class="text-center p-3"><span class="badge badge-danger">Inactive / Expired / Revoked</span><p class="text-muted mt-2">This token is not valid.</p></div>');
+        }
+      }).fail(function() {
+        $('#introspectResult').html('<div class="text-danger">Error inspecting token</div>');
+      });
+    }
+
+    function testGenerateToken() {
+      var clientId = $('#testClientSelect').val();
+      var clientSecret = $('#testClientSecret').val();
+      if (!clientId || !clientSecret) { alert('Select a client and enter the secret'); return; }
+
+      $.ajax({
+        method: 'POST', url: '/oauth2/token',
+        contentType: 'application/json',
+        data: JSON.stringify({ grant_type: 'client_credentials', client_id: clientId, client_secret: clientSecret }),
+      }).done(function(res) {
+        var html = '<div class="alert alert-success mb-2" style="font-size:0.85em;"><i class="fas fa-check"></i> Token generated! Expires in ' + res.expires_in + 's</div>';
+        html += '<div class="form-group mb-1"><label><small>Access Token</small></label><textarea class="form-control form-control-sm" rows="2" readonly onclick="this.select()">' + esc(res.access_token) + '</textarea></div>';
+        html += '<div><small class="text-muted">Scope: ' + esc(res.scope) + '</small></div>';
+        $('#testTokenResult').html(html);
+      }).fail(function(xhr) {
+        $('#testTokenResult').html('<div class="alert alert-danger" style="font-size:0.85em;">' + esc(xhr.responseJSON?.message || 'Failed') + '</div>');
+      });
+    }
+
+    // DICOM VIEWER (using daikon parser + canvas rendering)
+    var dicomPixelData = null;
+    var dicomImage = null;
+    var dicomInverted = false;
+    var dicomWW = 2048, dicomWL = 1024;
+
+    function loadDicomFile(event) {
+      var file = event.target.files[0];
+      if (!file) return;
+      showDicomLoading();
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        parseDicomBuffer(e.target.result);
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function loadSampleDicom() {
+      showDicomLoading();
+      // Generate a synthetic DICOM-like grayscale image for demo
+      // (Real sample DICOM files from public servers often have CORS issues)
+      generateSampleImage();
+    }
+
+    function showDicomLoading() {
+      $('#dicomPlaceholder').html('<div style="padding-top:200px;color:#666;text-align:center;"><i class="fas fa-spinner fa-spin fa-2x"></i><p class="mt-2">Loading...</p></div>').show();
+      $('#dicomCanvas').hide();
+    }
+
+    // DICOM parser using dicom-parser library
+    function parseDicomBuffer(buffer) {
+      try {
+        var byteArray = new Uint8Array(buffer);
+        var dataSet = dicomParser.parseDicom(byteArray);
+
+        function str(tag) { try { return dataSet.string(tag) || ''; } catch(e) { return ''; } }
+        function uint16(tag) { try { return dataSet.uint16(tag); } catch(e) { return undefined; } }
+
+        var cols = uint16('x00280011') || 0;
+        var rows = uint16('x00280010') || 0;
+        var bitsAlloc = uint16('x00280100') || 16;
+        var bitsStored = uint16('x00280101') || bitsAlloc;
+        var pixelRep = uint16('x00280103') || 0;
+        var samplesPerPixel = uint16('x00280002') || 1;
+        var numberOfFrames = parseInt(str('x00280008')) || 1;
+        var photometric = str('x00280004');
+        var transferSyntax = str('x00020010');
+
+        // Build image info object
+        dicomImage = {
+          getCols: function() { return cols; },
+          getRows: function() { return rows; },
+          getWindowWidth: function() { return dicomWW; },
+          getWindowCenter: function() { return dicomWL; },
+          getBitsStored: function() { return bitsStored; },
+          getPatientName: function() { return str('x00100010').replace(/\^/g, ' '); },
+          getPatientID: function() { return str('x00100020'); },
+          getStudyDate: function() { return str('x00080020'); },
+          getStudyDescription: function() { return str('x00081030'); },
+          getSeriesDescription: function() { return str('x0008103e'); },
+          getModality: function() { return str('x00080060'); },
+          getPhotometricInterpretation: function() { return photometric; },
+        };
+
+        var pixelDataElement = dataSet.elements.x7fe00010;
+        if (!cols || !rows || !pixelDataElement) {
+          $('#dicomPlaceholder').html('<div style="padding-top:180px;color:#c00;text-align:center;"><i class="fas fa-exclamation-triangle fa-2x"></i><p class="mt-2">Could not extract image data</p></div>').show();
+          showDicomInfo(dicomImage, cols, rows);
+          return;
+        }
+
+        // Detect if data is encapsulated (compressed JPEG/JPEG2000/RLE)
+        var isEncapsulated = pixelDataElement.encapsulatedPixelData === true ||
+                             pixelDataElement.hadUndefinedLength === true ||
+                             (transferSyntax && transferSyntax !== '1.2.840.10008.1.2' &&
+                              transferSyntax !== '1.2.840.10008.1.2.1' &&
+                              transferSyntax !== '1.2.840.10008.1.2.2');
+
+        if (isEncapsulated) {
+          // Extract compressed frame(s) from encapsulated pixel data
+          // Structure: Item(offset table) + Item(frame1) + Item(frame2) + ... + SequenceDelimiter
+          var fragments = extractEncapsulatedFrames(byteArray, pixelDataElement.dataOffset);
+
+          if (fragments.length > 0) {
+            // Check if it's JPEG by looking for JPEG SOI marker (FF D8)
+            var firstFrag = fragments[0];
+            var isJpeg = firstFrag.length >= 2 && firstFrag[0] === 0xFF && firstFrag[1] === 0xD8;
+
+            if (isJpeg) {
+              // Use browser's native JPEG decoder via <img> + canvas
+              renderCompressedFrame(firstFrag, cols, rows, photometric, numberOfFrames, fragments);
+              showDicomInfo(dicomImage, cols, rows);
+              return;
+            }
+          }
+
+          // If we can't decode the compression, show error
+          $('#dicomPlaceholder').html('<div style="padding-top:180px;color:#c00;text-align:center;"><i class="fas fa-exclamation-triangle fa-2x"></i><p class="mt-2">Unsupported compression</p><p><small>Transfer Syntax: ' + esc(transferSyntax) + '</small></p></div>').show();
+          showDicomInfo(dicomImage, cols, rows);
+          return;
+        }
+
+        // === Uncompressed pixel data ===
+        var pixelCount = cols * rows * samplesPerPixel;
+        var data = new Float64Array(cols * rows);
+        var pixOff = pixelDataElement.dataOffset;
+
+        if (samplesPerPixel === 3) {
+          // RGB uncompressed
+          for (var i = 0; i < cols * rows; i++) {
+            data[i] = 0.299 * byteArray[pixOff + i*3] + 0.587 * byteArray[pixOff + i*3+1] + 0.114 * byteArray[pixOff + i*3+2];
+          }
+        } else if (bitsAlloc === 16) {
+          for (var i = 0; i < cols * rows; i++) {
+            var lo = byteArray[pixOff + i*2], hi = byteArray[pixOff + i*2+1];
+            var val = lo | (hi << 8);
+            data[i] = pixelRep && (hi & 0x80) ? val | 0xFFFF0000 : val;
+          }
+        } else if (bitsAlloc === 8) {
+          for (var i = 0; i < cols * rows; i++) {
+            data[i] = byteArray[pixOff + i];
+          }
+        }
+
+        dicomPixelData = { data: data };
+
+        // Window/level from tags or auto-compute
+        var ww = parseFloat(str('x00281051')) || 0;
+        var wl = parseFloat(str('x00281050')) || 0;
+        if (ww > 0) {
+          dicomWW = ww; dicomWL = wl;
+        } else {
+          var min = Infinity, max = -Infinity;
+          for (var i = 0; i < data.length; i++) {
+            if (data[i] < min) min = data[i];
+            if (data[i] > max) max = data[i];
+          }
+          dicomWW = (max - min) || 1;
+          dicomWL = (max + min) / 2;
+        }
+
+        $('#dicomWindow').attr('max', Math.max(4096, dicomWW * 2)).val(dicomWW);
+        $('#dicomLevel').attr('min', Math.min(-1024, dicomWL - dicomWW)).attr('max', Math.max(3072, dicomWL + dicomWW)).val(dicomWL);
+        dicomInverted = photometric === 'MONOCHROME1';
+        renderDicomCanvas(cols, rows);
+        showDicomInfo(dicomImage, cols, rows);
+
+      } catch(e) {
+        console.error('DICOM parse error:', e);
+        $('#dicomPlaceholder').html('<div style="padding-top:180px;color:#c00;text-align:center;"><i class="fas fa-exclamation-triangle fa-2x"></i><p class="mt-2">Parse error: ' + esc(e.message) + '</p></div>').show();
+        $('#dicomCanvas').hide();
+      }
+    }
+
+    // Extract frames from DICOM encapsulated pixel data
+    function extractEncapsulatedFrames(byteArray, startOffset) {
+      var fragments = [];
+      var offset = startOffset;
+      var dv = new DataView(byteArray.buffer, byteArray.byteOffset, byteArray.byteLength);
+
+      while (offset + 8 <= byteArray.length) {
+        var tag = dv.getUint32(offset, true);
+        var len = dv.getUint32(offset + 4, true);
+        offset += 8;
+
+        if (tag === 0xE000FFFE) { // Item tag
+          if (len > 0 && offset + len <= byteArray.length) {
+            fragments.push(byteArray.slice(offset, offset + len));
+          }
+          offset += len;
+        } else if (tag === 0xE0DDFFFE) { // Sequence Delimitation
+          break;
+        } else {
+          break; // unexpected tag
+        }
+      }
+
+      // First fragment is usually the Basic Offset Table (often empty) — skip it
+      if (fragments.length > 1) {
+        fragments.shift();
+      }
+      return fragments;
+    }
+
+    // Render a JPEG-compressed DICOM frame using the browser's native decoder
+    function renderCompressedFrame(jpegBytes, cols, rows, photometric, totalFrames, allFragments) {
+      var blob = new Blob([jpegBytes], { type: 'image/jpeg' });
+      var url = URL.createObjectURL(blob);
+      var img = new Image();
+
+      img.onload = function() {
+        var canvas = document.getElementById('dicomCanvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+
+        // Extract pixel data from canvas for W/L adjustments
+        var imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        var data = new Float64Array(canvas.width * canvas.height);
+        for (var i = 0; i < data.length; i++) {
+          data[i] = imgData.data[i * 4]; // use red channel (grayscale)
+        }
+        dicomPixelData = { data: data };
+
+        var min = Infinity, max = -Infinity;
+        for (var i = 0; i < data.length; i++) {
+          if (data[i] < min) min = data[i];
+          if (data[i] > max) max = data[i];
+        }
+        dicomWW = (max - min) || 255;
+        dicomWL = (max + min) / 2;
+        dicomImage.getWindowWidth = function() { return dicomWW; };
+        dicomImage.getWindowCenter = function() { return dicomWL; };
+        dicomImage.getCols = function() { return canvas.width; };
+        dicomImage.getRows = function() { return canvas.height; };
+
+        $('#dicomWindow').attr('max', Math.max(256, dicomWW * 2)).val(dicomWW);
+        $('#dicomLevel').attr('min', 0).attr('max', 255).val(dicomWL);
+        dicomInverted = false;
+
+        $('#dicomPlaceholder').hide();
+        $('#dicomCanvas').show();
+
+        // If multi-frame, add frame navigation
+        if (totalFrames > 1 && allFragments && allFragments.length > 1) {
+          showFrameNav(allFragments, cols, rows, photometric);
+        }
+
+        // Update info with actual decoded dimensions
+        showDicomInfo(dicomImage, canvas.width, canvas.height);
+      };
+
+      img.onerror = function() {
+        URL.revokeObjectURL(url);
+        $('#dicomPlaceholder').html('<div style="padding-top:180px;color:#c00;text-align:center;"><i class="fas fa-exclamation-triangle fa-2x"></i><p class="mt-2">Could not decode compressed image</p></div>').show();
+      };
+
+      img.src = url;
+    }
+
+    var currentFrame = 0;
+    var dicomFrames = null;
+
+    function showFrameNav(fragments, cols, rows, photometric) {
+      dicomFrames = fragments;
+      currentFrame = 0;
+      // Add frame slider below window/level controls
+      if ($('#frameNav').length === 0) {
+        $('.content-area #page-dicom .card.mt-2 .card-body').append(
+          '<div id="frameNav" class="mt-2 d-flex align-items-center">' +
+          '<label class="mb-0 mr-2"><small>Frame:</small></label>' +
+          '<input type="range" id="frameSlider" min="0" max="' + (fragments.length-1) + '" value="0" style="flex:1" oninput="goToFrame(this.value)">' +
+          '<small class="ml-2" id="frameLabel">1 / ' + fragments.length + '</small>' +
+          '</div>'
+        );
+      } else {
+        $('#frameSlider').attr('max', fragments.length - 1).val(0);
+        $('#frameLabel').text('1 / ' + fragments.length);
+      }
+    }
+
+    function goToFrame(index) {
+      if (!dicomFrames || !dicomFrames[index]) return;
+      currentFrame = parseInt(index);
+      $('#frameLabel').text((currentFrame + 1) + ' / ' + dicomFrames.length);
+      var frag = dicomFrames[currentFrame];
+      if (frag[0] === 0xFF && frag[1] === 0xD8) {
+        // JPEG frame — re-render
+        var blob = new Blob([frag], { type: 'image/jpeg' });
+        var url = URL.createObjectURL(blob);
+        var img = new Image();
+        img.onload = function() {
+          var canvas = document.getElementById('dicomCanvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          URL.revokeObjectURL(url);
+        };
+        img.src = url;
+      }
+    }
+
+    function renderDicomCanvas(cols, rows) {
+      var canvas = document.getElementById('dicomCanvas');
+      canvas.width = cols;
+      canvas.height = rows;
+      var ctx = canvas.getContext('2d');
+      var imgData = ctx.createImageData(cols, rows);
+
+      var ww = dicomWW;
+      var wl = dicomWL;
+      var lower = wl - ww / 2;
+      var upper = wl + ww / 2;
+      var data = dicomPixelData.data;
+
+      for (var i = 0; i < data.length; i++) {
+        var val = data[i];
+        var gray;
+        if (val <= lower) gray = 0;
+        else if (val >= upper) gray = 255;
+        else gray = ((val - lower) / ww) * 255;
+
+        if (dicomInverted) gray = 255 - gray;
+
+        imgData.data[i * 4] = gray;
+        imgData.data[i * 4 + 1] = gray;
+        imgData.data[i * 4 + 2] = gray;
+        imgData.data[i * 4 + 3] = 255;
+      }
+
+      ctx.putImageData(imgData, 0, 0);
+      $('#dicomPlaceholder').hide();
+      $('#dicomCanvas').show();
+    }
+
+    function applyWindowLevel() {
+      if (!dicomPixelData || !dicomImage) return;
+      dicomWW = parseInt($('#dicomWindow').val());
+      dicomWL = parseInt($('#dicomLevel').val());
+      renderDicomCanvas(dicomImage.getCols(), dicomImage.getRows());
+    }
+
+    function resetWindowLevel() {
+      if (!dicomImage) return;
+      var ww = dicomImage.getWindowWidth();
+      var wl = dicomImage.getWindowCenter();
+      if (ww && wl) {
+        dicomWW = Array.isArray(ww) ? ww[0] : ww;
+        dicomWL = Array.isArray(wl) ? wl[0] : wl;
+      }
+      $('#dicomWindow').val(dicomWW);
+      $('#dicomLevel').val(dicomWL);
+      dicomInverted = false;
+      renderDicomCanvas(dicomImage.getCols(), dicomImage.getRows());
+    }
+
+    function invertDicom() {
+      if (!dicomPixelData || !dicomImage) return;
+      dicomInverted = !dicomInverted;
+      renderDicomCanvas(dicomImage.getCols(), dicomImage.getRows());
+    }
+
+    function showDicomInfo(image, cols, rows) {
+      var info = '';
+      var fields = [
+        ['Patient Name', image.getPatientName()],
+        ['Patient ID', image.getPatientID()],
+        ['Study Date', image.getStudyDate()],
+        ['Study Description', image.getStudyDescription()],
+        ['Series Description', image.getSeriesDescription()],
+        ['Modality', image.getModality()],
+        ['Institution', image.getInstitution && image.getInstitution()],
+        ['Dimensions', cols + ' x ' + rows],
+        ['Bits Stored', image.getBitsStored()],
+        ['Window Width', dicomWW],
+        ['Window Center', dicomWL],
+        ['Photometric', image.getPhotometricInterpretation && image.getPhotometricInterpretation()],
+      ];
+
+      fields.forEach(function(f) {
+        var val = f[1];
+        if (val !== null && val !== undefined && val !== '') {
+          info += '<div class="mb-1"><small class="text-muted">' + f[0] + '</small><br><strong>' + esc(String(val)) + '</strong></div>';
+        }
+      });
+
+      $('#dicomInfo').html(info || '<div class="text-success">Image loaded</div>');
+    }
+
+    function generateSampleImage() {
+      // Create a synthetic medical-looking image (chest phantom)
+      var cols = 256, rows = 256;
+      dicomImage = {
+        getCols: function() { return cols; },
+        getRows: function() { return rows; },
+        getWindowWidth: function() { return 400; },
+        getWindowCenter: function() { return 200; },
+        getBitsStored: function() { return 8; },
+        getPatientName: function() { return 'SAMPLE^PATIENT'; },
+        getPatientID: function() { return 'DEMO-001'; },
+        getStudyDate: function() { return '20260317'; },
+        getStudyDescription: function() { return 'Sample Chest PA'; },
+        getSeriesDescription: function() { return 'Generated Demo'; },
+        getModality: function() { return 'DX'; },
+        getPhotometricInterpretation: function() { return 'MONOCHROME2'; },
+      };
+
+      var data = new Float64Array(cols * rows);
+      for (var y = 0; y < rows; y++) {
+        for (var x = 0; x < cols; x++) {
+          var cx = cols / 2, cy = rows / 2;
+          var dx = x - cx, dy = y - cy;
+          var dist = Math.sqrt(dx * dx + dy * dy);
+          // Body outline (ellipse)
+          var body = dist < 100 ? 180 + Math.random() * 20 : 40 + Math.random() * 10;
+          // Lung fields (two dark ovals)
+          var lx1 = cx - 35, lx2 = cx + 35, ly = cy - 10;
+          var ld1 = Math.sqrt((x-lx1)*(x-lx1)*1.2 + (y-ly)*(y-ly)*0.7);
+          var ld2 = Math.sqrt((x-lx2)*(x-lx2)*1.2 + (y-ly)*(y-ly)*0.7);
+          if (ld1 < 45) body = 60 + Math.random() * 30 + (45-ld1)*0.5;
+          if (ld2 < 45) body = 60 + Math.random() * 30 + (45-ld2)*0.5;
+          // Heart shadow (center-left)
+          var hd = Math.sqrt((x-cx+15)*(x-cx+15) + (y-cy+5)*(y-cy+5)*1.5);
+          if (hd < 30) body = 220 + Math.random() * 20;
+          // Spine
+          if (Math.abs(x - cx) < 8 && dist < 95) body = 250 + Math.random() * 5;
+          // Ribs (horizontal bands)
+          if (dist < 95 && dist > 30) {
+            var ribPhase = Math.sin(y * 0.22) * Math.cos((x - cx) * 0.04);
+            if (ribPhase > 0.7) body = Math.min(350, body + 80);
+          }
+          data[y * cols + x] = body;
+        }
+      }
+
+      dicomPixelData = { data: data };
+      dicomWW = 400; dicomWL = 200;
+      $('#dicomWindow').val(dicomWW);
+      $('#dicomLevel').val(dicomWL);
+      dicomInverted = false;
+      renderDicomCanvas(cols, rows);
+      showDicomInfo(dicomImage, cols, rows);
     }
 
     // AUTO-LOGIN if token exists
