@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenEMR-TS</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+  <style>
+    body { background: #f4f6f9; }
+    .login-container { max-width: 400px; margin: 120px auto; }
+    .login-card { border: none; box-shadow: 0 2px 12px rgba(0,0,0,.1); border-radius: 12px; }
+    .login-card .card-header { background: #2c3e50; color: white; border-radius: 12px 12px 0 0; text-align: center; padding: 24px; }
+    .login-card .card-header h4 { margin: 0; font-weight: 600; }
+    .login-card .card-header small { opacity: 0.7; }
+    .dashboard { display: none; }
+    .sidebar { background: #2c3e50; min-height: 100vh; color: white; padding-top: 20px; }
+    .sidebar .nav-link { color: rgba(255,255,255,.7); padding: 12px 20px; border-radius: 0; }
+    .sidebar .nav-link:hover, .sidebar .nav-link.active { color: white; background: rgba(255,255,255,.1); }
+    .sidebar .nav-link i { width: 24px; text-align: center; margin-right: 8px; }
+    .topbar { background: white; padding: 12px 24px; box-shadow: 0 1px 4px rgba(0,0,0,.08); display: flex; justify-content: space-between; align-items: center; }
+    .content-area { padding: 24px; }
+    .stat-card { border: none; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+    .stat-card .card-body { padding: 20px; }
+    .stat-card .stat-icon { font-size: 2em; opacity: 0.3; }
+    .stat-card .stat-value { font-size: 1.8em; font-weight: 700; }
+    .table-card { border: none; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+    .brand-logo { font-size: 1.4em; font-weight: 700; padding: 0 20px 20px; border-bottom: 1px solid rgba(255,255,255,.1); margin-bottom: 10px; }
+    .patient-detail { display: none; }
+    #patientSearchInput { border-radius: 20px; }
+    .btn-primary { background: #3498db; border-color: #3498db; }
+    .btn-primary:hover { background: #2980b9; border-color: #2980b9; }
+    .modal-header { background: #2c3e50; color: white; }
+    .modal-header .close { color: white; }
+  </style>
+</head>
+<body>
+  <!-- LOGIN SCREEN -->
+  <div id="loginScreen" class="login-container">
+    <div class="card login-card">
+      <div class="card-header">
+        <h4><i class="fas fa-heartbeat"></i> OpenEMR-TS</h4>
+        <small>Electronic Health Records</small>
+      </div>
+      <div class="card-body p-4">
+        <div id="loginError" class="alert alert-danger d-none"></div>
+        <form id="loginForm">
+          <div class="form-group">
+            <label>Username</label>
+            <input type="text" class="form-control" id="username" value="admin" required>
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" class="form-control" id="password" value="admin" required>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block mt-4">
+            <i class="fas fa-sign-in-alt"></i> Sign In
+          </button>
+        </form>
+        <div class="text-center mt-3">
+          <small class="text-muted">
+            <a href="/api-docs" target="_blank">API Documentation</a>
+          </small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard" class="dashboard">
+    <div class="container-fluid p-0">
+      <div class="row no-gutters">
+        <!-- Sidebar -->
+        <div class="col-md-2 sidebar">
+          <div class="brand-logo">
+            <i class="fas fa-heartbeat"></i> OpenEMR-TS
+          </div>
+          <nav class="nav flex-column">
+            <a class="nav-link active" href="#" data-page="home"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+            <a class="nav-link" href="#" data-page="patients"><i class="fas fa-users"></i> Patients</a>
+            <a class="nav-link" href="#" data-page="scheduling"><i class="fas fa-calendar-alt"></i> Scheduling</a>
+            <a class="nav-link" href="#" data-page="labs"><i class="fas fa-flask"></i> Lab Orders</a>
+            <a class="nav-link" href="#" data-page="billing"><i class="fas fa-file-invoice-dollar"></i> Billing</a>
+            <a class="nav-link" href="#" data-page="fhir"><i class="fas fa-exchange-alt"></i> FHIR</a>
+            <a class="nav-link" href="/api/dicom/viewer" target="_blank"><i class="fas fa-x-ray"></i> DICOM Viewer</a>
+            <a class="nav-link" href="/api-docs" target="_blank"><i class="fas fa-book"></i> API Docs</a>
+          </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-10">
+          <div class="topbar">
+            <h5 id="pageTitle" class="mb-0">Dashboard</h5>
+            <div>
+              <span id="currentUser" class="mr-3"></span>
+              <button class="btn btn-outline-secondary btn-sm" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i> Logout
+              </button>
+            </div>
+          </div>
+
+          <div class="content-area">
+            <!-- HOME PAGE -->
+            <div id="page-home">
+              <div class="row mb-4">
+                <div class="col-md-3">
+                  <div class="card stat-card">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                      <div><div class="stat-value" id="statPatients">-</div><div class="text-muted">Patients</div></div>
+                      <i class="fas fa-users stat-icon text-primary"></i>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="card stat-card">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                      <div><div class="stat-value" id="statEncounters">-</div><div class="text-muted">Encounters</div></div>
+                      <i class="fas fa-stethoscope stat-icon text-success"></i>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="card stat-card">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                      <div><div class="stat-value" id="statLabs">-</div><div class="text-muted">Lab Orders</div></div>
+                      <i class="fas fa-flask stat-icon text-warning"></i>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="card stat-card">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                      <div><div class="stat-value" id="statMeds">-</div><div class="text-muted">Active Meds</div></div>
+                      <i class="fas fa-pills stat-icon text-danger"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="card table-card">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                  <strong>Recent Patients</strong>
+                </div>
+                <div class="card-body p-0">
+                  <table class="table table-hover mb-0">
+                    <thead class="thead-light"><tr><th>MRN</th><th>Name</th><th>DOB</th><th>Sex</th><th>Status</th><th></th></tr></thead>
+                    <tbody id="recentPatients"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- PATIENTS PAGE -->
+            <div id="page-patients" class="d-none">
+              <div class="row mb-3">
+                <div class="col-md-6">
+                  <div class="input-group">
+                    <input type="text" class="form-control" id="patientSearchInput" placeholder="Search patients by name or MRN...">
+                    <div class="input-group-append">
+                      <button class="btn btn-primary" onclick="searchPatients()"><i class="fas fa-search"></i></button>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6 text-right">
+                  <button class="btn btn-primary" onclick="showNewPatientModal()"><i class="fas fa-plus"></i> New Patient</button>
+                </div>
+              </div>
+              <div class="card table-card">
+                <div class="card-body p-0">
+                  <table class="table table-hover mb-0">
+                    <thead class="thead-light"><tr><th>MRN</th><th>Name</th><th>DOB</th><th>Sex</th><th>Phone</th><th>Email</th><th></th></tr></thead>
+                    <tbody id="patientList"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- PATIENT DETAIL PAGE -->
+            <div id="page-patient-detail" class="d-none">
+              <div class="mb-3">
+                <button class="btn btn-sm btn-outline-secondary" onclick="showPage('patients')"><i class="fas fa-arrow-left"></i> Back to Patients</button>
+              </div>
+              <div class="card mb-3">
+                <div class="card-body">
+                  <div class="row">
+                    <div class="col-md-8">
+                      <h4 id="patientDetailName"></h4>
+                      <div class="text-muted" id="patientDetailInfo"></div>
+                    </div>
+                    <div class="col-md-4 text-right">
+                      <button class="btn btn-sm btn-outline-primary mr-1" onclick="showNewEncounterModal()"><i class="fas fa-plus"></i> New Encounter</button>
+                      <button class="btn btn-sm btn-outline-success mr-1" onclick="showNewMedModal()"><i class="fas fa-pills"></i> Add Medication</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- Tabs -->
+              <ul class="nav nav-tabs mb-3">
+                <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#tab-encounters">Encounters</a></li>
+                <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-meds">Medications</a></li>
+                <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-allergies">Allergies</a></li>
+                <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-conditions">Conditions</a></li>
+              </ul>
+              <div class="tab-content">
+                <div class="tab-pane fade show active" id="tab-encounters">
+                  <table class="table table-sm"><thead><tr><th>Date</th><th>Class</th><th>Reason</th><th>Status</th></tr></thead><tbody id="encounterList"></tbody></table>
+                </div>
+                <div class="tab-pane fade" id="tab-meds">
+                  <table class="table table-sm"><thead><tr><th>Drug</th><th>Dosage</th><th>Route</th><th>Frequency</th><th>Active</th></tr></thead><tbody id="medList"></tbody></table>
+                </div>
+                <div class="tab-pane fade" id="tab-allergies">
+                  <table class="table table-sm"><thead><tr><th>Substance</th><th>Reaction</th><th>Severity</th><th>Status</th></tr></thead><tbody id="allergyList"></tbody></table>
+                </div>
+                <div class="tab-pane fade" id="tab-conditions">
+                  <table class="table table-sm"><thead><tr><th>Code</th><th>Title</th><th>Status</th><th>Onset</th></tr></thead><tbody id="conditionList"></tbody></table>
+                </div>
+              </div>
+            </div>
+
+            <!-- SCHEDULING PAGE -->
+            <div id="page-scheduling" class="d-none">
+              <p class="text-muted">Scheduling — view and manage appointments. Use the API at <code>POST /api/patient/:pid/appointment</code> to create appointments.</p>
+              <div class="card table-card">
+                <div class="card-body p-0">
+                  <table class="table table-hover mb-0">
+                    <thead class="thead-light"><tr><th>Patient</th><th>Start</th><th>End</th><th>Title</th><th>Status</th></tr></thead>
+                    <tbody id="appointmentList"><tr><td colspan="5" class="text-center text-muted p-4">No appointments yet</td></tr></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- LABS PAGE -->
+            <div id="page-labs" class="d-none">
+              <div class="card table-card">
+                <div class="card-header bg-white"><strong>Lab Orders</strong></div>
+                <div class="card-body p-0">
+                  <table class="table table-hover mb-0">
+                    <thead class="thead-light"><tr><th>ID</th><th>Patient</th><th>Date</th><th>Type</th><th>Status</th></tr></thead>
+                    <tbody id="labOrderList"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- BILLING PAGE -->
+            <div id="page-billing" class="d-none">
+              <p class="text-muted">Billing management — view billing entries, claims, and insurance. Use the API at <code>POST /api/patient/:pid/billing</code>.</p>
+            </div>
+
+            <!-- FHIR PAGE -->
+            <div id="page-fhir" class="d-none">
+              <h5>FHIR R4 API Explorer</h5>
+              <div class="row mb-3">
+                <div class="col-md-4">
+                  <select class="form-control" id="fhirResource">
+                    <option value="metadata">CapabilityStatement (metadata)</option>
+                    <option value="Patient">Patient</option>
+                    <option value="Encounter">Encounter</option>
+                    <option value="Observation">Observation</option>
+                    <option value="MedicationRequest">MedicationRequest</option>
+                    <option value="Condition">Condition</option>
+                    <option value="AllergyIntolerance">AllergyIntolerance</option>
+                    <option value="Appointment">Appointment</option>
+                    <option value="DocumentReference">DocumentReference</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <input type="text" class="form-control" id="fhirParams" placeholder="e.g. patient=1 or name=Doe">
+                </div>
+                <div class="col-md-2">
+                  <button class="btn btn-primary btn-block" onclick="queryFhir()"><i class="fas fa-play"></i> Query</button>
+                </div>
+              </div>
+              <pre id="fhirResult" class="bg-dark text-light p-3 rounded" style="max-height:500px;overflow:auto;font-size:0.85em;">Select a resource and click Query</pre>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Patient Modal -->
+  <div class="modal fade" id="newPatientModal">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title">New Patient</h5><button class="close" data-dismiss="modal">&times;</button></div>
+        <div class="modal-body">
+          <form id="newPatientForm">
+            <div class="row">
+              <div class="col-md-6 form-group"><label>First Name *</label><input type="text" class="form-control" name="firstName" required></div>
+              <div class="col-md-6 form-group"><label>Last Name *</label><input type="text" class="form-control" name="lastName" required></div>
+            </div>
+            <div class="row">
+              <div class="col-md-6 form-group"><label>Date of Birth *</label><input type="date" class="form-control" name="dateOfBirth" required></div>
+              <div class="col-md-6 form-group"><label>Sex *</label><select class="form-control" name="sex"><option>Male</option><option>Female</option><option>Other</option></select></div>
+            </div>
+            <div class="row">
+              <div class="col-md-6 form-group"><label>Phone</label><input type="text" class="form-control" name="phoneCell"></div>
+              <div class="col-md-6 form-group"><label>Email</label><input type="email" class="form-control" name="email"></div>
+            </div>
+            <div class="form-group"><label>Street</label><input type="text" class="form-control" name="street"></div>
+            <div class="row">
+              <div class="col-md-4 form-group"><label>City</label><input type="text" class="form-control" name="city"></div>
+              <div class="col-md-4 form-group"><label>State</label><input type="text" class="form-control" name="state"></div>
+              <div class="col-md-4 form-group"><label>Zip</label><input type="text" class="form-control" name="postalCode"></div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" onclick="createPatient()">Create Patient</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Encounter Modal -->
+  <div class="modal fade" id="newEncounterModal">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title">New Encounter</h5><button class="close" data-dismiss="modal">&times;</button></div>
+        <div class="modal-body">
+          <form id="newEncounterForm">
+            <div class="row">
+              <div class="col-md-6 form-group"><label>Date *</label><input type="datetime-local" class="form-control" name="encounterDate" required></div>
+              <div class="col-md-6 form-group"><label>Class</label><select class="form-control" name="classCode"><option value="AMB">Ambulatory</option><option value="EMER">Emergency</option><option value="IMP">Inpatient</option></select></div>
+            </div>
+            <div class="form-group"><label>Reason for Visit</label><input type="text" class="form-control" name="reasonForVisit"></div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" onclick="createEncounter()">Create Encounter</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Medication Modal -->
+  <div class="modal fade" id="newMedModal">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title">Add Medication</h5><button class="close" data-dismiss="modal">&times;</button></div>
+        <div class="modal-body">
+          <form id="newMedForm">
+            <div class="form-group"><label>Drug Name *</label><input type="text" class="form-control" name="drugName" required></div>
+            <div class="row">
+              <div class="col-md-4 form-group"><label>Dosage</label><input type="text" class="form-control" name="dosage"></div>
+              <div class="col-md-4 form-group"><label>Unit</label><input type="text" class="form-control" name="unit" value="mg"></div>
+              <div class="col-md-4 form-group"><label>Route</label><input type="text" class="form-control" name="route" value="oral"></div>
+            </div>
+            <div class="row">
+              <div class="col-md-6 form-group"><label>Frequency</label><input type="text" class="form-control" name="frequency" value="once daily"></div>
+              <div class="col-md-6 form-group"><label>Start Date</label><input type="date" class="form-control" name="startDate"></div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" onclick="createMedication()">Add Medication</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    let token = localStorage.getItem('token');
+    let currentUser = null;
+    let currentPatient = null;
+
+    function api(method, path, data) {
+      return $.ajax({
+        method, url: path, data: data ? JSON.stringify(data) : undefined,
+        contentType: 'application/json',
+        headers: { 'Authorization': 'Bearer ' + token },
+      });
+    }
+
+    // LOGIN
+    $('#loginForm').submit(function(e) {
+      e.preventDefault();
+      $.ajax({
+        method: 'POST', url: '/api/auth/login',
+        contentType: 'application/json',
+        data: JSON.stringify({ username: $('#username').val(), password: $('#password').val() }),
+        success: function(res) {
+          token = res.accessToken;
+          currentUser = res.user;
+          localStorage.setItem('token', token);
+          showDashboard();
+        },
+        error: function() { $('#loginError').removeClass('d-none').text('Invalid credentials'); }
+      });
+    });
+
+    function logout() {
+      token = null; currentUser = null;
+      localStorage.removeItem('token');
+      $('#dashboard').hide(); $('#loginScreen').show();
+    }
+
+    function showDashboard() {
+      $('#loginScreen').hide(); $('#dashboard').show();
+      $('#currentUser').html('<i class="fas fa-user-circle"></i> ' + (currentUser ? currentUser.firstName + ' ' + currentUser.lastName : 'User'));
+      loadDashboard();
+    }
+
+    function loadDashboard() {
+      api('GET', '/api/patient?limit=10').done(function(res) {
+        $('#statPatients').text(res.meta ? res.meta.total : res.data.length);
+        var html = '';
+        (res.data || []).forEach(function(p) {
+          html += '<tr><td>' + p.mrn + '</td><td>' + p.firstName + ' ' + p.lastName + '</td><td>' + (p.dateOfBirth||'') + '</td><td>' + p.sex + '</td><td><span class="badge badge-success">' + p.status + '</span></td><td><button class="btn btn-sm btn-outline-primary" onclick="viewPatient(' + p.id + ')">View</button></td></tr>';
+        });
+        $('#recentPatients').html(html || '<tr><td colspan="6" class="text-center text-muted p-4">No patients yet — create one!</td></tr>');
+      });
+      api('GET', '/api/procedure').done(function(res) { $('#statLabs').text((res.data||[]).length); });
+    }
+
+    // NAVIGATION
+    $('.sidebar .nav-link[data-page]').click(function(e) {
+      e.preventDefault();
+      showPage($(this).data('page'));
+    });
+
+    function showPage(page) {
+      $('.sidebar .nav-link').removeClass('active');
+      $('.sidebar .nav-link[data-page="' + page + '"]').addClass('active');
+      $('[id^="page-"]').addClass('d-none');
+      $('#page-' + page).removeClass('d-none');
+      var titles = { home:'Dashboard', patients:'Patients', scheduling:'Scheduling', labs:'Lab Orders', billing:'Billing', fhir:'FHIR Explorer', 'patient-detail':'Patient Detail' };
+      $('#pageTitle').text(titles[page] || page);
+      if (page === 'home') loadDashboard();
+      if (page === 'patients') searchPatients();
+      if (page === 'labs') loadLabs();
+    }
+
+    // PATIENTS
+    function searchPatients() {
+      var q = $('#patientSearchInput').val() || '';
+      api('GET', '/api/patient?search=' + encodeURIComponent(q) + '&limit=50').done(function(res) {
+        var html = '';
+        (res.data || []).forEach(function(p) {
+          html += '<tr><td>' + p.mrn + '</td><td>' + p.firstName + ' ' + p.lastName + '</td><td>' + (p.dateOfBirth||'') + '</td><td>' + p.sex + '</td><td>' + (p.phoneCell||'') + '</td><td>' + (p.email||'') + '</td><td><button class="btn btn-sm btn-outline-primary" onclick="viewPatient(' + p.id + ')">View</button></td></tr>';
+        });
+        $('#patientList').html(html || '<tr><td colspan="7" class="text-center p-4 text-muted">No patients found</td></tr>');
+      });
+    }
+    $('#patientSearchInput').on('keyup', function(e) { if (e.key === 'Enter') searchPatients(); });
+
+    function showNewPatientModal() { $('#newPatientForm')[0].reset(); $('#newPatientModal').modal('show'); }
+
+    function createPatient() {
+      var data = {};
+      $('#newPatientForm').serializeArray().forEach(function(f) { if (f.value) data[f.name] = f.value; });
+      api('POST', '/api/patient', data).done(function() {
+        $('#newPatientModal').modal('hide');
+        searchPatients();
+        loadDashboard();
+      }).fail(function(xhr) { alert('Error: ' + (xhr.responseJSON?.message || 'Failed')); });
+    }
+
+    // PATIENT DETAIL
+    function viewPatient(id) {
+      api('GET', '/api/patient').done(function(res) {
+        currentPatient = (res.data||[]).find(function(p) { return p.id == id; });
+        if (!currentPatient) return;
+        $('#patientDetailName').text(currentPatient.firstName + ' ' + currentPatient.lastName);
+        $('#patientDetailInfo').html('MRN: ' + currentPatient.mrn + ' | DOB: ' + currentPatient.dateOfBirth + ' | Sex: ' + currentPatient.sex + ' | Status: <span class="badge badge-success">' + currentPatient.status + '</span>');
+        showPage('patient-detail');
+        loadPatientData();
+      });
+    }
+
+    function loadPatientData() {
+      if (!currentPatient) return;
+      var pid = currentPatient.id;
+      // Encounters
+      api('GET', '/api/patient/' + pid + '/encounter').done(function(res) {
+        var html = '';
+        (res.data || []).forEach(function(e) {
+          html += '<tr><td>' + new Date(e.encounterDate).toLocaleDateString() + '</td><td>' + e.classCode + '</td><td>' + (e.reasonForVisit||'-') + '</td><td><span class="badge badge-info">' + e.status + '</span></td></tr>';
+        });
+        $('#encounterList').html(html || '<tr><td colspan="4" class="text-muted">No encounters</td></tr>');
+        $('#statEncounters').text((res.data||[]).length);
+      });
+      // Medications
+      api('GET', '/api/patient/' + pid + '/medication').done(function(res) {
+        var html = '';
+        (res.data || []).forEach(function(m) {
+          html += '<tr><td>' + m.drugName + '</td><td>' + (m.dosage||'') + ' ' + (m.unit||'') + '</td><td>' + (m.route||'') + '</td><td>' + (m.frequency||'') + '</td><td>' + (m.active ? '<span class="badge badge-success">Yes</span>' : '<span class="badge badge-secondary">No</span>') + '</td></tr>';
+        });
+        $('#medList').html(html || '<tr><td colspan="5" class="text-muted">No medications</td></tr>');
+        $('#statMeds').text((res.data||[]).filter(function(m){return m.active;}).length);
+      });
+      // Allergies
+      api('GET', '/api/patient/' + pid + '/allergy').done(function(res) {
+        var html = '';
+        (res.data || []).forEach(function(a) {
+          html += '<tr><td>' + a.substance + '</td><td>' + (a.reaction||'-') + '</td><td>' + (a.severity||'-') + '</td><td>' + a.status + '</td></tr>';
+        });
+        $('#allergyList').html(html || '<tr><td colspan="4" class="text-muted">No allergies recorded</td></tr>');
+      });
+      // Conditions
+      api('GET', '/api/patient/' + pid + '/condition').done(function(res) {
+        var html = '';
+        (res.data || []).forEach(function(c) {
+          html += '<tr><td>' + c.code + '</td><td>' + c.title + '</td><td>' + c.status + '</td><td>' + (c.onsetDate||'-') + '</td></tr>';
+        });
+        $('#conditionList').html(html || '<tr><td colspan="4" class="text-muted">No conditions recorded</td></tr>');
+      });
+    }
+
+    function showNewEncounterModal() { $('#newEncounterForm')[0].reset(); $('#newEncounterModal').modal('show'); }
+    function createEncounter() {
+      var data = { providerId: 1 };
+      $('#newEncounterForm').serializeArray().forEach(function(f) { if (f.value) data[f.name] = f.value; });
+      if (data.encounterDate) data.encounterDate = new Date(data.encounterDate).toISOString();
+      api('POST', '/api/patient/' + currentPatient.id + '/encounter', data).done(function() {
+        $('#newEncounterModal').modal('hide');
+        loadPatientData();
+      }).fail(function(xhr) { alert('Error: ' + (xhr.responseJSON?.message || 'Failed')); });
+    }
+
+    function showNewMedModal() { $('#newMedForm')[0].reset(); $('#newMedModal').modal('show'); }
+    function createMedication() {
+      var data = {};
+      $('#newMedForm').serializeArray().forEach(function(f) { if (f.value) data[f.name] = f.value; });
+      api('POST', '/api/patient/' + currentPatient.id + '/medication', data).done(function() {
+        $('#newMedModal').modal('hide');
+        loadPatientData();
+      }).fail(function(xhr) { alert('Error: ' + (xhr.responseJSON?.message || 'Failed')); });
+    }
+
+    // LABS
+    function loadLabs() {
+      api('GET', '/api/procedure').done(function(res) {
+        var html = '';
+        (res.data || []).forEach(function(l) {
+          html += '<tr><td>' + l.id + '</td><td>' + l.patientId + '</td><td>' + (l.orderDate||'-') + '</td><td>' + l.orderType + '</td><td><span class="badge badge-' + (l.status==='complete'?'success':'warning') + '">' + l.status + '</span></td></tr>';
+        });
+        $('#labOrderList').html(html || '<tr><td colspan="5" class="text-center p-4 text-muted">No lab orders</td></tr>');
+      });
+    }
+
+    // FHIR
+    function queryFhir() {
+      var resource = $('#fhirResource').val();
+      var params = $('#fhirParams').val();
+      var url = '/fhir/' + resource + (params ? '?' + params : '');
+      api('GET', url).done(function(res) {
+        $('#fhirResult').text(JSON.stringify(res, null, 2));
+      }).fail(function(xhr) {
+        $('#fhirResult').text('Error: ' + xhr.status + '\n' + JSON.stringify(xhr.responseJSON, null, 2));
+      });
+    }
+
+    // AUTO-LOGIN if token exists
+    $(function() {
+      if (token) {
+        api('GET', '/api/patient?limit=1').done(function() {
+          showDashboard();
+        }).fail(function() {
+          logout();
+        });
+      }
+    });
+  </script>
+</body>
+</html>

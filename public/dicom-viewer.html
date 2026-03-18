@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DICOM Viewer - OpenEMR-TS</title>
+  <style>
+    body { margin: 0; padding: 0; background: #000; color: #fff; font-family: sans-serif; }
+    #toolbar { background: #222; padding: 8px 16px; display: flex; gap: 8px; align-items: center; }
+    #toolbar button { padding: 6px 12px; cursor: pointer; }
+    #dwv { width: 100%; height: calc(100vh - 50px); }
+    .info { padding: 20px; text-align: center; color: #888; }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <strong>DICOM Viewer</strong>
+    <button onclick="loadUrl()">Load from URL</button>
+    <input type="file" id="fileInput" accept=".dcm,.dicom,application/dicom" onchange="loadFile(event)">
+    <span id="status"></span>
+  </div>
+  <div id="dwv">
+    <div class="info">
+      <p>Load a DICOM file using the controls above, or pass <code>?url=</code> parameter.</p>
+      <p>This viewer uses <a href="https://github.com/nicktobey/dwv" style="color:#4af">DWV (DICOM Web Viewer)</a>.</p>
+    </div>
+  </div>
+
+  <!-- DWV library from CDN -->
+  <script src="https://unpkg.com/dwv@0.33.0/dist/dwv.min.js"></script>
+  <script>
+    let app = null;
+
+    function initApp() {
+      app = new dwv.App();
+      app.init({
+        dataViewConfigs: { '*': [{ divId: 'dwv' }] },
+      });
+      document.getElementById('status').textContent = 'Ready';
+
+      // Check for URL parameter
+      const params = new URLSearchParams(window.location.search);
+      const url = params.get('url');
+      if (url) {
+        document.getElementById('status').textContent = 'Loading...';
+        app.loadURLs([url]);
+      }
+    }
+
+    function loadFile(event) {
+      if (app && event.target.files.length > 0) {
+        document.getElementById('status').textContent = 'Loading...';
+        app.loadFiles(event.target.files);
+      }
+    }
+
+    function loadUrl() {
+      const url = prompt('Enter DICOM file URL:');
+      if (url && app) {
+        document.getElementById('status').textContent = 'Loading...';
+        app.loadURLs([url]);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>
