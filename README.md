@@ -10,6 +10,8 @@ OpenEMR-TS is a clean reimplementation of core OpenEMR clinical workflows in Typ
 
 This project is not a fork — it's a ground-up rewrite that preserves OpenEMR's clinical patterns, FHIR R4 compliance, and HL7v2 interoperability while modernizing the architecture.
 
+This was done so that emerging start up teams in the Healthcare and Healthtech space can have a modern lightweight EHR to play with to simulate workflows and to also simulate integrations against real EHRs with their own products. I have witnessed this gap working in the healthcare integration space for the last few years and so it's been a personal desire of mine to create one from the giants at OpenEMR. Now anyone can take this and run it on their machine in minutes and have workflows issue out HL7 messages or be queryable via FHIR. 
+
 ## Features
 
 ### Clinical
