@@ -23,6 +23,7 @@ import { TenantModule } from './tenant/tenant.module.js';
 import { MeteringModule } from './metering/metering.module.js';
 import { SimulationModule } from './simulation/simulation.module.js';
 import { EndpointModule } from './endpoint/endpoint.module.js';
+import { McpModule } from './mcp/mcp.module.js';
 
 @Module({
   imports: [
@@ -80,6 +81,7 @@ import { EndpointModule } from './endpoint/endpoint.module.js';
     JobsModule,
     SimulationModule,
     EndpointModule,
+    McpModule,
   ],
 })
 export class AppModule {}
