@@ -14,8 +14,8 @@ export class PatientService {
     private readonly patientRepo: Repository<Patient>,
   ) {}
 
-  async create(dto: CreatePatientDto): Promise<Patient> {
-    const mrn = await this.generateMrn();
+  async create(dto: CreatePatientDto & { mrn?: string; tenantId?: number }): Promise<Patient> {
+    const mrn = dto.mrn || (await this.generateMrn());
     const patient = this.patientRepo.create({
       ...dto,
       mrn,
@@ -91,6 +91,18 @@ export class PatientService {
 
     Object.assign(patient, updateData);
     return this.patientRepo.save(patient);
+  }
+
+  async deleteByMrnPrefix(prefix: string, tenantId?: number): Promise<number> {
+    const qb = this.patientRepo
+      .createQueryBuilder()
+      .delete()
+      .where('mrn LIKE :prefix', { prefix: `${prefix}%` });
+    if (tenantId) {
+      qb.andWhere('tenantId = :tenantId', { tenantId });
+    }
+    const result = await qb.execute();
+    return result.affected || 0;
   }
 
   private async generateMrn(): Promise<string> {

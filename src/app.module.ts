@@ -21,6 +21,7 @@ import { OAuth2Module } from './oauth2/oauth2.module.js';
 import { WebhookModule } from './webhook/webhook.module.js';
 import { TenantModule } from './tenant/tenant.module.js';
 import { MeteringModule } from './metering/metering.module.js';
+import { SimulationModule } from './simulation/simulation.module.js';
 
 @Module({
   imports: [
@@ -76,6 +77,7 @@ import { MeteringModule } from './metering/metering.module.js';
     DicomModule,
     PdfModule,
     JobsModule,
+    SimulationModule,
   ],
 })
 export class AppModule {}
