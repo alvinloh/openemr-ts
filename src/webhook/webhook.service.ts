@@ -38,6 +38,8 @@ export class WebhookService {
     url: string;
     events: string[];
     createdBy?: number;
+    tenantId?: number;
+    filters?: Record<string, string>;
   }): Promise<{ webhook: Webhook; secret: string }> {
     const secret = randomBytes(32).toString('hex');
     const webhook = this.webhookRepo.create({
@@ -46,13 +48,17 @@ export class WebhookService {
       events: data.events.join(','),
       secret,
       createdBy: data.createdBy || null,
+      tenantId: data.tenantId || null,
+      filters: data.filters ? JSON.stringify(data.filters) : null,
     });
     const saved = await this.webhookRepo.save(webhook);
     return { webhook: saved, secret };
   }
 
-  async list(): Promise<Webhook[]> {
-    return this.webhookRepo.find({ order: { createdAt: 'DESC' } });
+  async list(tenantId?: number): Promise<Webhook[]> {
+    const where: any = {};
+    if (tenantId) where.tenantId = tenantId;
+    return this.webhookRepo.find({ where, order: { createdAt: 'DESC' } });
   }
 
   async delete(webhookId: string): Promise<void> {
@@ -68,15 +74,91 @@ export class WebhookService {
     return this.logRepo.find({ where, order: { deliveredAt: 'DESC' }, take: limit });
   }
 
+  async replay(logId: number): Promise<{ success: boolean; statusCode: number }> {
+    const log = await this.logRepo.findOne({ where: { id: logId } });
+    if (!log) throw new NotFoundException('Webhook log entry not found');
+
+    const webhook = await this.webhookRepo.findOne({ where: { webhookId: log.webhookId } });
+    if (!webhook) throw new NotFoundException('Webhook no longer exists');
+
+    // Re-deliver the original payload
+    const start = Date.now();
+    let statusCode = 0;
+    let responseBody = '';
+    let error = '';
+    let success = false;
+
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'X-Webhook-Event': log.event,
+        'X-Webhook-Id': log.webhookId,
+        'X-Webhook-Replay': 'true',
+      };
+
+      if (webhook.secret && log.requestBody) {
+        const signature = createHmac('sha256', webhook.secret)
+          .update(log.requestBody)
+          .digest('hex');
+        headers['X-Webhook-Signature'] = `sha256=${signature}`;
+      }
+
+      const response = await fetch(webhook.url, {
+        method: 'POST',
+        headers,
+        body: log.requestBody || '{}',
+        signal: AbortSignal.timeout(10000),
+      });
+
+      statusCode = response.status;
+      responseBody = (await response.text()).substring(0, 1000);
+      success = response.ok;
+    } catch (err: any) {
+      error = err.message;
+    }
+
+    // Log the replay
+    await this.logRepo.save(
+      this.logRepo.create({
+        webhookId: log.webhookId,
+        event: `${log.event}(replay)`,
+        url: webhook.url,
+        statusCode,
+        success,
+        requestBody: log.requestBody,
+        responseBody: responseBody || null,
+        error: error || null,
+        durationMs: Date.now() - start,
+      }),
+    );
+
+    return { success, statusCode };
+  }
+
   getAvailableEvents(): string[] {
     return [...WEBHOOK_EVENTS];
   }
 
   // ── Dispatch ──
 
-  async dispatch(event: WebhookEvent, payload: Record<string, any>): Promise<void> {
-    const webhooks = await this.webhookRepo.find({ where: { active: true } });
-    const matching = webhooks.filter((w) => w.events.split(',').includes(event));
+  async dispatch(event: WebhookEvent, payload: Record<string, any>, tenantId?: number): Promise<void> {
+    const where: any = { active: true };
+    if (tenantId) where.tenantId = tenantId;
+    const webhooks = await this.webhookRepo.find({ where });
+    let matching = webhooks.filter((w) => w.events.split(',').includes(event));
+
+    // Apply filters — if webhook has filters, check that payload matches
+    matching = matching.filter((w) => {
+      if (!w.filters) return true;
+      try {
+        const filters = JSON.parse(w.filters) as Record<string, string>;
+        return Object.entries(filters).every(
+          ([key, value]) => String(payload[key]) === String(value),
+        );
+      } catch {
+        return true;
+      }
+    });
 
     for (const webhook of matching) {
       this.deliverAsync(webhook, event, payload);

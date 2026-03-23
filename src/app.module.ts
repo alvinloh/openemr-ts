@@ -25,6 +25,7 @@ import { SimulationModule } from './simulation/simulation.module.js';
 import { EndpointModule } from './endpoint/endpoint.module.js';
 import { McpModule } from './mcp/mcp.module.js';
 import { BillingStripeModule } from './billing-stripe/billing-stripe.module.js';
+import { MarketplaceModule } from './marketplace/marketplace.module.js';
 
 @Module({
   imports: [
@@ -84,6 +85,7 @@ import { BillingStripeModule } from './billing-stripe/billing-stripe.module.js';
     EndpointModule,
     McpModule,
     BillingStripeModule,
+    MarketplaceModule,
   ],
 })
 export class AppModule {}

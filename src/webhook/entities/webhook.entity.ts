@@ -26,6 +26,10 @@ export class Webhook extends TenantScopedEntity {
   @Column({ type: 'bigint', nullable: true })
   createdBy: number | null;
 
+  // JSON filter conditions: { "patientId": "123" } — only dispatch if payload matches
+  @Column({ type: 'text', nullable: true })
+  filters: string | null;
+
   @BeforeInsert()
   generateWebhookId() {
     if (!this.webhookId) this.webhookId = uuidv4();
