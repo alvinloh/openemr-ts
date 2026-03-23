@@ -1,11 +1,8 @@
-import { Entity, Column, CreateDateColumn, UpdateDateColumn, PrimaryGeneratedColumn, BeforeInsert } from 'typeorm';
-import { v4 as uuidv4 } from 'uuid';
+import { Entity, Column } from 'typeorm';
+import { TenantScopedEntity } from '../../common/entities/tenant-scoped.entity.js';
 
 @Entity('oauth2_clients')
-export class OAuth2Client {
-  @PrimaryGeneratedColumn('increment', { type: 'bigint' })
-  id: number;
-
+export class OAuth2Client extends TenantScopedEntity {
   @Column({ type: 'varchar', length: 36, unique: true })
   clientId: string;
 
@@ -35,17 +32,4 @@ export class OAuth2Client {
   // Who registered this client (admin user ID)
   @Column({ type: 'bigint', nullable: true })
   registeredBy: number | null;
-
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
-
-  @BeforeInsert()
-  generateClientId() {
-    if (!this.clientId) {
-      this.clientId = uuidv4();
-    }
-  }
 }

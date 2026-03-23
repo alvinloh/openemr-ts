@@ -1,9 +1,9 @@
 import { Entity, Column, Index } from 'typeorm';
-import { BaseEntity } from '../../common/entities/base.entity.js';
+import { TenantScopedEntity } from '../../common/entities/tenant-scoped.entity.js';
 
 @Entity('lab_reports')
 @Index(['labOrderId'])
-export class LabReport extends BaseEntity {
+export class LabReport extends TenantScopedEntity {
   @Column({ type: 'bigint' })
   labOrderId: number;
 

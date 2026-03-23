@@ -1,8 +1,8 @@
 import { Entity, Column } from 'typeorm';
-import { BaseEntity } from '../../common/entities/base.entity.js';
+import { TenantScopedEntity } from '../../common/entities/tenant-scoped.entity.js';
 
 @Entity('insurance_companies')
-export class InsuranceCompany extends BaseEntity {
+export class InsuranceCompany extends TenantScopedEntity {
   @Column({ type: 'varchar', length: 255 })
   name: string;
 
