@@ -22,6 +22,7 @@ import { WebhookModule } from './webhook/webhook.module.js';
 import { TenantModule } from './tenant/tenant.module.js';
 import { MeteringModule } from './metering/metering.module.js';
 import { SimulationModule } from './simulation/simulation.module.js';
+import { EndpointModule } from './endpoint/endpoint.module.js';
 
 @Module({
   imports: [
@@ -78,6 +79,7 @@ import { SimulationModule } from './simulation/simulation.module.js';
     PdfModule,
     JobsModule,
     SimulationModule,
+    EndpointModule,
   ],
 })
 export class AppModule {}
