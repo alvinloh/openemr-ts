@@ -70,6 +70,13 @@ export class WebhookController {
     return ApiResponse.ok(await this.webhookService.getLogs(webhookId));
   }
 
+  @Post('replay/:logId')
+  @ApiOperation({ summary: 'Replay a webhook delivery from logs' })
+  async replay(@Param('logId') logId: string) {
+    const result = await this.webhookService.replay(parseInt(logId, 10));
+    return { message: result.success ? 'Replay successful' : 'Replay failed', ...result };
+  }
+
   @Post('test')
   @ApiOperation({ summary: 'Send a test event to a webhook' })
   async test(@Body() body: { webhookId: string }) {
