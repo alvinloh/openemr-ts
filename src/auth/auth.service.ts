@@ -30,6 +30,7 @@ export class AuthService {
       sub: user.uuid,
       username: user.username,
       role: user.role,
+      tenantId: user.tenantId,
     };
     return {
       accessToken: this.jwtService.sign(payload),
@@ -70,6 +71,7 @@ export class AuthService {
     email?: string;
     npi?: string;
     specialty?: string;
+    tenantId?: number;
   }): Promise<User> {
     const existing = await this.userRepo.findOne({
       where: { username: data.username },
@@ -85,6 +87,7 @@ export class AuthService {
       email: data.email || null,
       npi: data.npi || null,
       specialty: data.specialty || null,
+      tenantId: data.tenantId || null,
     });
     return this.userRepo.save(user);
   }

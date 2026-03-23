@@ -1,11 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, Column, Index } from 'typeorm';
+import { Entity, Column, Index } from 'typeorm';
+import { TenantScopedEntity } from '../../common/entities/tenant-scoped.entity.js';
 
 @Entity('encounter_diagnoses')
 @Index(['encounterId'])
-export class EncounterDiagnosis {
-  @PrimaryGeneratedColumn('increment', { type: 'bigint' })
-  id: number;
-
+export class EncounterDiagnosis extends TenantScopedEntity {
   @Column({ type: 'bigint' })
   encounterId: number;
 

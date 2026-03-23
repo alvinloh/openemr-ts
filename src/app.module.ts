@@ -19,6 +19,7 @@ import { PdfModule } from './pdf/pdf.module.js';
 import { JobsModule } from './jobs/jobs.module.js';
 import { OAuth2Module } from './oauth2/oauth2.module.js';
 import { WebhookModule } from './webhook/webhook.module.js';
+import { TenantModule } from './tenant/tenant.module.js';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { WebhookModule } from './webhook/webhook.module.js';
     // Core
     AuditModule,
     AuthModule,
+    TenantModule,
     OAuth2Module,
     WebhookModule,
 

@@ -1,10 +1,10 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
-import { BaseEntity } from '../../common/entities/base.entity.js';
+import { TenantScopedEntity } from '../../common/entities/tenant-scoped.entity.js';
 import { Role } from '../../common/constants/roles.constants.js';
 import { Exclude } from 'class-transformer';
 
 @Entity('users')
-export class User extends BaseEntity {
+export class User extends TenantScopedEntity {
   @Column({ type: 'varchar', length: 100, unique: true })
   username: string;
 
@@ -44,4 +44,5 @@ export class User extends BaseEntity {
 
   @Column({ type: 'enum', enum: Role, default: Role.STAFF })
   role: Role;
+
 }

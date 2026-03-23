@@ -1,11 +1,11 @@
 import { Entity, Column, ManyToOne, JoinColumn, OneToMany, Index } from 'typeorm';
-import { BaseEntity } from '../../common/entities/base.entity.js';
+import { TenantScopedEntity } from '../../common/entities/tenant-scoped.entity.js';
 
 @Entity('encounters')
 @Index(['patientId'])
 @Index(['providerId'])
 @Index(['encounterDate'])
-export class Encounter extends BaseEntity {
+export class Encounter extends TenantScopedEntity {
   @Column({ type: 'bigint' })
   patientId: number;
 

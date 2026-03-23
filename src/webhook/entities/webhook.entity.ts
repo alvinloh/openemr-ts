@@ -1,11 +1,9 @@
-import { Entity, Column, CreateDateColumn, UpdateDateColumn, PrimaryGeneratedColumn, BeforeInsert } from 'typeorm';
+import { Entity, Column, BeforeInsert } from 'typeorm';
+import { TenantScopedEntity } from '../../common/entities/tenant-scoped.entity.js';
 import { v4 as uuidv4 } from 'uuid';
 
 @Entity('webhooks')
-export class Webhook {
-  @PrimaryGeneratedColumn('increment', { type: 'bigint' })
-  id: number;
-
+export class Webhook extends TenantScopedEntity {
   @Column({ type: 'varchar', length: 36, unique: true })
   webhookId: string;
 
@@ -28,14 +26,8 @@ export class Webhook {
   @Column({ type: 'bigint', nullable: true })
   createdBy: number | null;
 
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
-
   @BeforeInsert()
-  generateId() {
+  generateWebhookId() {
     if (!this.webhookId) this.webhookId = uuidv4();
   }
 }
