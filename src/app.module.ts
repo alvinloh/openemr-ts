@@ -20,6 +20,7 @@ import { JobsModule } from './jobs/jobs.module.js';
 import { OAuth2Module } from './oauth2/oauth2.module.js';
 import { WebhookModule } from './webhook/webhook.module.js';
 import { TenantModule } from './tenant/tenant.module.js';
+import { MeteringModule } from './metering/metering.module.js';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { TenantModule } from './tenant/tenant.module.js';
     AuditModule,
     AuthModule,
     TenantModule,
+    MeteringModule,
     OAuth2Module,
     WebhookModule,
 
