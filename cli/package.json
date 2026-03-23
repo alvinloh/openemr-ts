@@ -1,0 +1,21 @@
+{
+  "name": "openemr-ts-cli",
+  "version": "0.1.0",
+  "description": "CLI for OpenEMR-TS — manage patients, HL7 workflows, and simulations from the command line",
+  "type": "module",
+  "bin": {
+    "openemr-ts": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "commander": "^13.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "tsx": "^4.19.0",
+    "@types/node": "^22.0.0"
+  }
+}
