@@ -2,6 +2,7 @@ import { Controller, Get, Param, Query, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { OAuth2OrJwtGuard } from '../oauth2/guards/oauth2-or-jwt.guard.js';
 import { JwtOrApiKeyGuard } from '../common/guards/jwt-or-apikey.guard.js';
+import { Public } from '../common/decorators/public.decorator.js';
 import { Request } from 'express';
 import { PatientService } from '../patient/patient.service.js';
 import { EncounterService } from '../encounter/encounter.service.js';
@@ -56,6 +57,7 @@ export class FhirController {
   ) {}
 
   @Get('metadata')
+  @Public()
   @ApiOperation({ summary: 'FHIR CapabilityStatement' })
   getMetadata(): FhirCapabilityStatement {
     return {

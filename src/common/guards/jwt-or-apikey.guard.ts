@@ -4,8 +4,10 @@ import {
   ExecutionContext,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 import { TenantService } from '../../tenant/tenant.service.js';
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator.js';
 
 /**
  * Combined guard that accepts either:
@@ -13,13 +15,21 @@ import { TenantService } from '../../tenant/tenant.service.js';
  * 2. API key (x-api-key header) — tenant API key auth
  *
  * If both are present, both are validated and attached to the request.
- * At least one must be valid.
+ * At least one must be valid. Endpoints decorated with @Public() skip auth.
  */
 @Injectable()
 export class JwtOrApiKeyGuard implements CanActivate {
-  constructor(private readonly tenantService: TenantService) {}
+  constructor(
+    private readonly tenantService: TenantService,
+    private readonly reflector: Reflector,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isPublic) return true;
     const request = context.switchToHttp().getRequest();
     const apiKeyHeader = request.headers['x-api-key'] as string;
     const authHeader = request.headers['authorization'] as string;

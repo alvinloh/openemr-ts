@@ -47,7 +47,14 @@ test.describe('FHIR API with API Key Auth', () => {
     expect(body.entry[0].resource.resourceType).toBe('Patient');
   });
 
-  test('should reject FHIR requests without auth', async ({ request }) => {
+  test('should get CapabilityStatement without auth (public)', async ({ request }) => {
+    const response = await request.get('/fhir/metadata');
+    expect(response.ok()).toBeTruthy();
+    const body = await response.json();
+    expect(body.resourceType).toBe('CapabilityStatement');
+  });
+
+  test('should reject FHIR resource requests without auth', async ({ request }) => {
     const response = await request.get('/fhir/Patient');
     expect(response.status()).toBe(401);
   });
