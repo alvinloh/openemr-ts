@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "openemr-ts": {
+      "command": "npx",
+      "args": ["tsx", "/Users/a/Projects/openemr-ts/cli/src/mcp-server.ts"],
+      "env": {
+        "OPENEMR_API_URL": "http://localhost:3000",
+        "OPENEMR_API_KEY": "oet_64b29bb135a1_006bc0543bf55dc2e10c58f1acbaa8bc460d0e849a2073c4"
+      }
+    }
+  }
+}

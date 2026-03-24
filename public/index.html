@@ -62,6 +62,54 @@
             <a href="/api-docs" target="_blank">API Documentation</a>
           </small>
         </div>
+        <hr>
+        <div class="text-center">
+          <small>Don't have an account? <a href="#" onclick="showSignupForm()">Sign up</a></small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIGNUP SCREEN -->
+  <div id="signupScreen" class="login-container" style="display:none; max-width:450px;">
+    <div class="card login-card">
+      <div class="card-header">
+        <h4><i class="fas fa-heartbeat"></i> OpenEMR-TS</h4>
+        <small>Create Your Account</small>
+      </div>
+      <div class="card-body p-4">
+        <div id="signupError" class="alert alert-danger d-none"></div>
+        <div id="signupSuccess" class="alert alert-success d-none"></div>
+        <form id="signupForm">
+          <div class="form-group">
+            <label>Organization Name</label>
+            <input type="text" class="form-control" id="signupOrg" placeholder="Acme Health" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label>First Name</label>
+              <input type="text" class="form-control" id="signupFirstName" required>
+            </div>
+            <div class="form-group col-md-6">
+              <label>Last Name</label>
+              <input type="text" class="form-control" id="signupLastName" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" class="form-control" id="signupEmail" required>
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" class="form-control" id="signupPassword" minlength="8" required>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block mt-4">
+            <i class="fas fa-user-plus"></i> Create Account
+          </button>
+        </form>
+        <div class="text-center mt-3">
+          <small>Already have an account? <a href="#" onclick="showLoginForm()">Sign in</a></small>
+        </div>
       </div>
     </div>
   </div>
@@ -84,6 +132,7 @@
             <a class="nav-link" href="#" data-page="fhir"><i class="fas fa-exchange-alt"></i> FHIR</a>
             <a class="nav-link" href="#" data-page="dicom"><i class="fas fa-x-ray"></i> DICOM Viewer</a>
             <a class="nav-link" href="#" data-page="connectors"><i class="fas fa-plug"></i> Connectors</a>
+            <a class="nav-link" href="#" data-page="tenant"><i class="fas fa-building"></i> Tenant</a>
             <a class="nav-link" href="/api-docs" target="_blank"><i class="fas fa-book"></i> API Docs</a>
           </nav>
         </div>
@@ -573,6 +622,165 @@ Authorization: Bearer &lt;token&gt;</pre>
               </div>
             </div>
 
+            <!-- TENANT PAGE -->
+            <div id="page-tenant" class="d-none">
+              <ul class="nav nav-tabs mb-3">
+                <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#tenant-tab-overview">Overview</a></li>
+                <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tenant-tab-apikeys">API Keys</a></li>
+                <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tenant-tab-endpoints">Endpoints</a></li>
+                <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tenant-tab-usage">Usage</a></li>
+                <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tenant-tab-simulate">Simulate</a></li>
+              </ul>
+              <div class="tab-content">
+                <!-- Overview Tab -->
+                <div class="tab-pane fade show active" id="tenant-tab-overview">
+                  <div class="row">
+                    <div class="col-md-6">
+                      <div class="card">
+                        <div class="card-header bg-white"><strong><i class="fas fa-building"></i> Tenant Info</strong></div>
+                        <div class="card-body" id="tenantInfo"><p class="text-muted">No tenant linked. Use the API to sign up: <code>POST /api/signup</code></p></div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="card">
+                        <div class="card-header bg-white"><strong><i class="fas fa-chart-bar"></i> Plan Limits</strong></div>
+                        <div class="card-body" id="tenantLimits"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="mt-3" id="tenantApiKeySetup">
+                    <div class="card">
+                      <div class="card-header bg-white"><strong><i class="fas fa-key"></i> Connect API Key</strong></div>
+                      <div class="card-body">
+                        <p class="text-muted">Paste your API key to enable tenant features in the UI.</p>
+                        <div class="input-group">
+                          <input type="text" class="form-control" id="tenantApiKeyInput" placeholder="oet_...">
+                          <div class="input-group-append">
+                            <button class="btn btn-primary" onclick="connectApiKey()"><i class="fas fa-link"></i> Connect</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <!-- API Keys Tab -->
+                <div class="tab-pane fade" id="tenant-tab-apikeys">
+                  <div class="row">
+                    <div class="col-md-8">
+                      <div class="card table-card">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                          <strong><i class="fas fa-key"></i> API Keys</strong>
+                        </div>
+                        <div class="card-body p-0">
+                          <table class="table table-hover mb-0">
+                            <thead class="thead-light"><tr><th>Name</th><th>Prefix</th><th>Scopes</th><th>Status</th><th>Last Used</th><th></th></tr></thead>
+                            <tbody id="tenantApiKeyList"></tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="card">
+                        <div class="card-header bg-white"><strong>Create API Key</strong></div>
+                        <div class="card-body">
+                          <div class="form-group"><label>Name</label><input type="text" class="form-control form-control-sm" id="newKeyName" placeholder="My Integration"></div>
+                          <div class="form-group"><label>Scopes</label>
+                            <select class="form-control form-control-sm" id="newKeyScopes" multiple size="6">
+                              <option value="patient:read" selected>patient:read</option>
+                              <option value="patient:write">patient:write</option>
+                              <option value="hl7:send" selected>hl7:send</option>
+                              <option value="hl7:receive">hl7:receive</option>
+                              <option value="fhir:read" selected>fhir:read</option>
+                              <option value="fhir:write">fhir:write</option>
+                              <option value="simulate:run" selected>simulate:run</option>
+                            </select>
+                            <small class="text-muted">Ctrl/Cmd+click to select multiple</small>
+                          </div>
+                          <button class="btn btn-primary btn-sm btn-block" onclick="createTenantApiKey()"><i class="fas fa-plus"></i> Create Key</button>
+                          <div class="d-none mt-2" id="newKeyResult">
+                            <div class="alert alert-warning" style="font-size:0.85em;"><i class="fas fa-exclamation-triangle"></i> Save this key now — it won't be shown again:</div>
+                            <input type="text" class="form-control form-control-sm" id="newKeyValue" readonly onclick="this.select()">
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <!-- Endpoints Tab -->
+                <div class="tab-pane fade" id="tenant-tab-endpoints">
+                  <div class="row">
+                    <div class="col-md-8">
+                      <div class="card table-card">
+                        <div class="card-header bg-white"><strong><i class="fas fa-server"></i> HL7 Endpoints</strong></div>
+                        <div class="card-body p-0">
+                          <table class="table table-hover mb-0">
+                            <thead class="thead-light"><tr><th>Name</th><th>Transport</th><th>Destination</th><th>Status</th><th>Failures</th><th></th></tr></thead>
+                            <tbody id="tenantEndpointList"></tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="card">
+                        <div class="card-header bg-white"><strong>Add Endpoint</strong></div>
+                        <div class="card-body">
+                          <div class="form-group"><label>Name</label><input type="text" class="form-control form-control-sm" id="epName" placeholder="my-lab-system"></div>
+                          <div class="form-group"><label>Transport</label>
+                            <select class="form-control form-control-sm" id="epTransport" onchange="toggleEpFields()">
+                              <option value="HTTP">HTTP</option><option value="HTTPS">HTTPS</option><option value="MLLP">MLLP</option>
+                            </select>
+                          </div>
+                          <div id="epHttpFields">
+                            <div class="form-group"><label>URL</label><input type="text" class="form-control form-control-sm" id="epUrl" placeholder="https://lab.example.com/hl7"></div>
+                          </div>
+                          <div id="epMllpFields" style="display:none;">
+                            <div class="form-group"><label>Host</label><input type="text" class="form-control form-control-sm" id="epHost" placeholder="lab.internal.com"></div>
+                            <div class="form-group"><label>Port</label><input type="number" class="form-control form-control-sm" id="epPort" placeholder="2575"></div>
+                          </div>
+                          <button class="btn btn-primary btn-sm btn-block" onclick="createEndpoint()"><i class="fas fa-plus"></i> Add Endpoint</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <!-- Usage Tab -->
+                <div class="tab-pane fade" id="tenant-tab-usage">
+                  <div class="row" id="tenantUsageCards"></div>
+                </div>
+                <!-- Simulate Tab -->
+                <div class="tab-pane fade" id="tenant-tab-simulate">
+                  <div class="row">
+                    <div class="col-md-4">
+                      <div class="card">
+                        <div class="card-header bg-white"><strong><i class="fas fa-play-circle"></i> Run Simulation</strong></div>
+                        <div class="card-body">
+                          <div class="form-group"><label>Scenario</label>
+                            <select class="form-control form-control-sm" id="simScenario">
+                              <option value="full-visit">Full Visit</option>
+                              <option value="lab-only">Lab Only</option>
+                              <option value="admit-discharge">Admit/Discharge</option>
+                              <option value="pharmacy">Pharmacy</option>
+                              <option value="referral">Referral</option>
+                            </select>
+                          </div>
+                          <div class="form-group"><label>Patients</label><input type="number" class="form-control form-control-sm" id="simPatients" value="3" min="1" max="100"></div>
+                          <div class="form-group"><label>Lab Panels</label><input type="text" class="form-control form-control-sm" id="simPanels" value="CBC,BMP" placeholder="CBC,BMP,CMP,LIPID"></div>
+                          <button class="btn btn-primary btn-block" onclick="runSimulation()"><i class="fas fa-play"></i> Run</button>
+                          <button class="btn btn-outline-danger btn-sm btn-block mt-2" onclick="cleanupSimulation()"><i class="fas fa-trash"></i> Cleanup SIM-* Data</button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-8">
+                      <div class="card">
+                        <div class="card-header bg-white"><strong>Results</strong></div>
+                        <div class="card-body" id="simResults"><p class="text-muted">Run a simulation to see results here.</p></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- FHIR PAGE -->
             <div id="page-fhir" class="d-none">
               <h5>FHIR R4 API Explorer</h5>
@@ -812,14 +1020,26 @@ Authorization: Bearer &lt;token&gt;</pre>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     let token = localStorage.getItem('token');
+    let apiKey = localStorage.getItem('apiKey');
     let currentUser = null;
     let currentPatient = null;
 
     function api(method, path, data) {
+      var headers = { 'Authorization': 'Bearer ' + token };
+      if (apiKey) headers['x-api-key'] = apiKey;
       return $.ajax({
         method, url: path, data: data ? JSON.stringify(data) : undefined,
         contentType: 'application/json',
-        headers: { 'Authorization': 'Bearer ' + token },
+        headers: headers,
+      });
+    }
+
+    function tenantApi(method, path, data) {
+      if (!apiKey) return $.Deferred().reject({ responseJSON: { message: 'No API key configured' } });
+      return $.ajax({
+        method, url: path, data: data ? JSON.stringify(data) : undefined,
+        contentType: 'application/json',
+        headers: { 'x-api-key': apiKey },
       });
     }
 
@@ -845,6 +1065,39 @@ Authorization: Bearer &lt;token&gt;</pre>
       localStorage.removeItem('token');
       $('#dashboard').hide(); $('#loginScreen').show();
     }
+
+    // SIGNUP
+    function showSignupForm() { $('#loginScreen').hide(); $('#signupScreen').show(); }
+    function showLoginForm() { $('#signupScreen').hide(); $('#loginScreen').show(); }
+
+    $('#signupForm').submit(function(e) {
+      e.preventDefault();
+      $('#signupError').addClass('d-none'); $('#signupSuccess').addClass('d-none');
+      $.ajax({
+        method: 'POST', url: '/api/signup', contentType: 'application/json',
+        data: JSON.stringify({
+          organizationName: $('#signupOrg').val(),
+          email: $('#signupEmail').val(),
+          password: $('#signupPassword').val(),
+          firstName: $('#signupFirstName').val(),
+          lastName: $('#signupLastName').val(),
+        }),
+        success: function(res) {
+          apiKey = res.apiKey;
+          localStorage.setItem('apiKey', apiKey);
+          $('#signupSuccess').removeClass('d-none').html(
+            '<strong>Account created!</strong><br>Your API key: <code>' + res.apiKey + '</code><br>' +
+            '<small class="text-danger">Save this key — it will not be shown again.</small><br><br>' +
+            'You can now <a href="#" onclick="showLoginForm()">sign in</a> with your email and password.'
+          );
+          $('#signupForm').hide();
+        },
+        error: function(xhr) {
+          var msg = xhr.responseJSON ? xhr.responseJSON.message : 'Signup failed';
+          $('#signupError').removeClass('d-none').text(msg);
+        }
+      });
+    });
 
     function showDashboard() {
       $('#loginScreen').hide(); $('#dashboard').show();
@@ -875,13 +1128,14 @@ Authorization: Bearer &lt;token&gt;</pre>
       $('.sidebar .nav-link[data-page="' + page + '"]').addClass('active');
       $('[id^="page-"]').addClass('d-none');
       $('#page-' + page).removeClass('d-none');
-      var titles = { home:'Dashboard', patients:'Patients', scheduling:'Scheduling', labs:'Lab Orders', billing:'Billing', dicom:'DICOM Viewer', fhir:'FHIR Explorer', connectors:'Connectors', 'patient-detail':'Patient Detail' };
+      var titles = { home:'Dashboard', patients:'Patients', scheduling:'Scheduling', labs:'Lab Orders', billing:'Billing', dicom:'DICOM Viewer', fhir:'FHIR Explorer', connectors:'Connectors', tenant:'Tenant', 'patient-detail':'Patient Detail' };
       $('#pageTitle').text(titles[page] || page);
       if (page === 'home') loadDashboard();
       if (page === 'patients') searchPatients();
       if (page === 'scheduling') loadScheduling();
       if (page === 'labs') loadLabs();
       if (page === 'connectors') loadConnectors();
+      if (page === 'tenant') loadTenantPage();
     }
 
     // PATIENTS
@@ -2329,6 +2583,151 @@ Authorization: Bearer &lt;token&gt;</pre>
         });
       }
     });
+    // ── TENANT PAGE ──
+
+    function connectApiKey() {
+      var key = $('#tenantApiKeyInput').val().trim();
+      if (!key) return;
+      apiKey = key;
+      localStorage.setItem('apiKey', apiKey);
+      loadTenantPage();
+    }
+
+    function loadTenantPage() {
+      if (!apiKey) {
+        $('#tenantInfo').html('<p class="text-muted">No API key connected. Paste your key below or <a href="#" onclick="showSignupForm()">sign up</a> to get one.</p>');
+        $('#tenantLimits').html('');
+        return;
+      }
+      tenantApi('GET', '/api/tenant').done(function(t) {
+        $('#tenantInfo').html(
+          '<table class="table table-sm mb-0">' +
+          '<tr><td><strong>Organization</strong></td><td>' + t.name + '</td></tr>' +
+          '<tr><td><strong>Slug</strong></td><td><code>' + t.slug + '</code></td></tr>' +
+          '<tr><td><strong>Email</strong></td><td>' + t.email + '</td></tr>' +
+          '<tr><td><strong>Plan</strong></td><td><span class="badge badge-primary">' + t.plan.toUpperCase() + '</span></td></tr>' +
+          '<tr><td><strong>Status</strong></td><td><span class="badge badge-success">' + t.status + '</span></td></tr>' +
+          '</table>'
+        );
+        $('#tenantLimits').html(
+          '<table class="table table-sm mb-0">' +
+          '<tr><td>API calls/day</td><td><strong>' + t.limits.dailyApiLimit + '</strong></td></tr>' +
+          '<tr><td>HL7 messages/month</td><td><strong>' + t.limits.monthlyHl7Limit + '</strong></td></tr>' +
+          '<tr><td>Max endpoints</td><td><strong>' + t.limits.maxEndpoints + '</strong></td></tr>' +
+          '<tr><td>Max users</td><td><strong>' + t.limits.maxUsers + '</strong></td></tr>' +
+          '<tr><td>Max simulated patients</td><td><strong>' + t.limits.maxSimulatedPatients + '</strong></td></tr>' +
+          '</table>'
+        );
+        $('#tenantApiKeyInput').val(apiKey);
+      }).fail(function(xhr) {
+        var msg = xhr.responseJSON ? xhr.responseJSON.message : 'Failed to load tenant info';
+        $('#tenantInfo').html('<div class="alert alert-danger">' + msg + '</div>');
+      });
+      loadTenantApiKeys();
+      loadTenantEndpoints();
+      loadTenantUsage();
+    }
+
+    function loadTenantApiKeys() {
+      tenantApi('GET', '/api/tenant/api-keys').done(function(keys) {
+        var html = '';
+        keys.forEach(function(k) {
+          var status = k.active ? '<span class="badge badge-success">active</span>' : '<span class="badge badge-secondary">revoked</span>';
+          html += '<tr><td>' + k.name + '</td><td><code>' + k.keyPrefix + '...</code></td><td><small>' + (k.scopes||[]).join(', ') + '</small></td><td>' + status + '</td><td><small>' + (k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleDateString() : 'never') + '</small></td><td>' +
+            (k.active ? '<button class="btn btn-xs btn-outline-danger" onclick="revokeApiKey(\'' + k.uuid + '\')">Revoke</button>' : '') + '</td></tr>';
+        });
+        $('#tenantApiKeyList').html(html || '<tr><td colspan="6" class="text-center text-muted p-3">No API keys</td></tr>');
+      });
+    }
+
+    function createTenantApiKey() {
+      var scopes = [];
+      $('#newKeyScopes option:selected').each(function() { scopes.push($(this).val()); });
+      tenantApi('POST', '/api/tenant/api-keys', { name: $('#newKeyName').val(), scopes: scopes }).done(function(res) {
+        $('#newKeyValue').val(res.key);
+        $('#newKeyResult').removeClass('d-none');
+        loadTenantApiKeys();
+      }).fail(function(xhr) { alert(xhr.responseJSON ? xhr.responseJSON.message : 'Failed'); });
+    }
+
+    function revokeApiKey(uuid) {
+      if (!confirm('Revoke this API key?')) return;
+      tenantApi('DELETE', '/api/tenant/api-keys/' + uuid).done(function() { loadTenantApiKeys(); });
+    }
+
+    function loadTenantEndpoints() {
+      tenantApi('GET', '/api/tenant/endpoints').done(function(eps) {
+        var html = '';
+        eps.forEach(function(ep) {
+          var statusBadge = ep.status === 'active' ? 'success' : ep.status === 'unhealthy' ? 'danger' : 'secondary';
+          html += '<tr><td>' + ep.name + '</td><td>' + ep.transport + '</td><td><code>' + ep.destination + '</code></td><td><span class="badge badge-' + statusBadge + '">' + ep.status + '</span></td><td>' + ep.consecutiveFailures + '</td><td><button class="btn btn-xs btn-outline-danger" onclick="deleteEndpoint(\'' + ep.uuid + '\')">Delete</button></td></tr>';
+        });
+        $('#tenantEndpointList').html(html || '<tr><td colspan="6" class="text-center text-muted p-3">No endpoints registered</td></tr>');
+      });
+    }
+
+    function toggleEpFields() {
+      var t = $('#epTransport').val();
+      if (t === 'MLLP') { $('#epMllpFields').show(); $('#epHttpFields').hide(); }
+      else { $('#epMllpFields').hide(); $('#epHttpFields').show(); }
+    }
+
+    function createEndpoint() {
+      var body = { name: $('#epName').val(), transport: $('#epTransport').val() };
+      if (body.transport === 'MLLP') { body.host = $('#epHost').val(); body.port = parseInt($('#epPort').val()); }
+      else { body.url = $('#epUrl').val(); }
+      tenantApi('POST', '/api/tenant/endpoints', body).done(function() {
+        $('#epName').val(''); $('#epUrl').val(''); $('#epHost').val(''); $('#epPort').val('');
+        loadTenantEndpoints();
+      }).fail(function(xhr) { alert(xhr.responseJSON ? xhr.responseJSON.message : 'Failed'); });
+    }
+
+    function deleteEndpoint(uuid) {
+      if (!confirm('Delete this endpoint?')) return;
+      tenantApi('DELETE', '/api/tenant/endpoints/' + uuid).done(function() { loadTenantEndpoints(); });
+    }
+
+    function loadTenantUsage() {
+      tenantApi('GET', '/api/tenant/usage').done(function(u) {
+        $('#tenantUsageCards').html(
+          '<div class="col-md-3"><div class="card stat-card"><div class="card-body"><div class="text-muted">API Calls Today</div><div class="stat-value">' + u.apiCalls.today + '<small class="text-muted"> / ' + u.apiCalls.limit + '</small></div></div></div></div>' +
+          '<div class="col-md-3"><div class="card stat-card"><div class="card-body"><div class="text-muted">HL7 Messages (Month)</div><div class="stat-value">' + u.hl7Messages.thisMonth + '<small class="text-muted"> / ' + u.hl7Messages.limit + '</small></div></div></div></div>' +
+          '<div class="col-md-3"><div class="card stat-card"><div class="card-body"><div class="text-muted">FHIR Queries Today</div><div class="stat-value">' + u.fhirQueries.today + '</div></div></div></div>' +
+          '<div class="col-md-3"><div class="card stat-card"><div class="card-body"><div class="text-muted">Simulations (Month)</div><div class="stat-value">' + u.simulations.thisMonth + '</div></div></div></div>'
+        );
+      });
+    }
+
+    function runSimulation() {
+      var body = {
+        scenario: $('#simScenario').val(),
+        patientCount: parseInt($('#simPatients').val()),
+        labPanels: $('#simPanels').val().split(',').map(function(s) { return s.trim(); }),
+      };
+      $('#simResults').html('<p><i class="fas fa-spinner fa-spin"></i> Running simulation...</p>');
+      tenantApi('POST', '/api/simulate', body).done(function(res) {
+        var html = '<div class="alert alert-success"><strong>Complete!</strong> ' + res.patientsCreated + ' patients, ' + res.stepsExecuted + ' steps, ' + res.hl7MessagesGenerated + ' HL7 messages (' + res.durationMs + 'ms)</div>';
+        html += '<table class="table table-sm"><thead><tr><th>Patient</th><th>Step</th><th>HL7</th><th>Status</th><th>Time</th></tr></thead><tbody>';
+        res.steps.forEach(function(s) {
+          var status = s.hl7Sent ? '<span class="badge badge-success">sent</span>' : s.hl7Message ? '<span class="badge badge-info">generated</span>' : '<span class="badge badge-secondary">done</span>';
+          html += '<tr><td><code>' + s.patientMrn + '</code></td><td>' + s.step + '</td><td>' + s.hl7MessageType + '</td><td>' + status + '</td><td>' + s.durationMs + 'ms</td></tr>';
+        });
+        html += '</tbody></table>';
+        $('#simResults').html(html);
+        loadTenantUsage();
+      }).fail(function(xhr) {
+        var msg = xhr.responseJSON ? xhr.responseJSON.message : 'Simulation failed';
+        $('#simResults').html('<div class="alert alert-danger">' + msg + '</div>');
+      });
+    }
+
+    function cleanupSimulation() {
+      if (!confirm('Delete all simulated (SIM-*) patient data?')) return;
+      tenantApi('DELETE', '/api/simulate/cleanup').done(function(res) {
+        alert('Cleaned up ' + res.deletedPatients + ' simulated patients.');
+        loadDashboard();
+      });
+    }
   </script>
 </body>
 </html>

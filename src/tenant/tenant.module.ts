@@ -6,6 +6,7 @@ import { TenantService } from './tenant.service.js';
 import { TenantController } from './tenant.controller.js';
 import { TenantGuard } from './guards/tenant.guard.js';
 import { ScopeGuard } from './guards/scope.guard.js';
+import { JwtOrApiKeyGuard } from '../common/guards/jwt-or-apikey.guard.js';
 import { AuthModule } from '../auth/auth.module.js';
 
 @Module({
@@ -14,7 +15,7 @@ import { AuthModule } from '../auth/auth.module.js';
     forwardRef(() => AuthModule),
   ],
   controllers: [TenantController],
-  providers: [TenantService, TenantGuard, ScopeGuard],
-  exports: [TenantService, TenantGuard, ScopeGuard],
+  providers: [TenantService, TenantGuard, ScopeGuard, JwtOrApiKeyGuard],
+  exports: [TenantService, TenantGuard, ScopeGuard, JwtOrApiKeyGuard],
 })
 export class TenantModule {}

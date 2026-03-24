@@ -4,18 +4,20 @@
   "description": "CLI for OpenEMR-TS — manage patients, HL7 workflows, and simulations from the command line",
   "type": "module",
   "bin": {
-    "openemr-ts": "./dist/index.js"
+    "openemr-ts": "./dist/index.js",
+    "openemr-ts-mcp": "./dist/mcp-server.js"
   },
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "commander": "^13.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0",
     "tsx": "^4.19.0",
-    "@types/node": "^22.0.0"
+    "typescript": "^5.7.0"
   }
 }

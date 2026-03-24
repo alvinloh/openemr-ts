@@ -1,5 +1,5 @@
 import { Controller, Get, Query, Res, UseGuards } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { JwtOrApiKeyGuard } from '../common/guards/jwt-or-apikey.guard.js';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Response } from 'express';
 import { PdfService } from './pdf.service.js';
@@ -11,7 +11,7 @@ import { PaginationDto } from '../common/dto/pagination.dto.js';
 
 @ApiTags('PDF')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(JwtOrApiKeyGuard)
 @Controller('api/pdf')
 export class PdfController {
   constructor(

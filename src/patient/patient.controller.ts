@@ -8,7 +8,6 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PatientService } from './patient.service.js';
 import { CreatePatientDto } from './dto/create-patient.dto.js';
@@ -16,10 +15,11 @@ import { UpdatePatientDto } from './dto/update-patient.dto.js';
 import { PatientQueryDto } from './dto/patient-query.dto.js';
 import { UuidValidationPipe } from '../common/pipes/uuid-validation.pipe.js';
 import { ApiResponse } from '../common/dto/api-response.dto.js';
+import { JwtOrApiKeyGuard } from '../common/guards/jwt-or-apikey.guard.js';
 
 @ApiTags('Patient')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(JwtOrApiKeyGuard)
 @Controller('api/patient')
 export class PatientController {
   constructor(private readonly patientService: PatientService) {}

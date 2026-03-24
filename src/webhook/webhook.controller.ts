@@ -8,7 +8,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { JwtOrApiKeyGuard } from '../common/guards/jwt-or-apikey.guard.js';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { WebhookService } from './webhook.service.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
@@ -16,7 +16,7 @@ import { ApiResponse } from '../common/dto/api-response.dto.js';
 
 @ApiTags('Webhooks')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(JwtOrApiKeyGuard)
 @Controller('api/webhooks')
 export class WebhookController {
   constructor(private readonly webhookService: WebhookService) {}

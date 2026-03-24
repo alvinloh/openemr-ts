@@ -27,7 +27,15 @@ export class SimulateDto {
   @IsString({ each: true })
   steps?: string[];
 
-  @ApiProperty({ example: 5, description: 'Number of patients to simulate (max 100)' })
+  @ApiPropertyOptional({
+    example: '29f67f58-10bf-4939-a0fe-a418fff59f4c',
+    description: 'Target an existing patient by UUID. Skips the register step and runs remaining steps against this patient. When set, patientCount is ignored.',
+  })
+  @IsOptional()
+  @IsString()
+  patientUuid?: string;
+
+  @ApiProperty({ example: 5, description: 'Number of patients to simulate (max 100). Ignored if patientUuid is set.' })
   @IsInt()
   @Min(1)
   @Max(100)

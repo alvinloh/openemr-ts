@@ -7,7 +7,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { JwtOrApiKeyGuard } from '../common/guards/jwt-or-apikey.guard.js';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { LabService } from './lab.service.js';
 import { UuidValidationPipe } from '../common/pipes/uuid-validation.pipe.js';
@@ -15,7 +15,7 @@ import { ApiResponse } from '../common/dto/api-response.dto.js';
 
 @ApiTags('Lab / Procedures')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(JwtOrApiKeyGuard)
 @Controller('api/procedure')
 export class LabController {
   constructor(private readonly labService: LabService) {}

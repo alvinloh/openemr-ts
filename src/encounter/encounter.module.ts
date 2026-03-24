@@ -11,6 +11,7 @@ import {
   ConditionController,
   AllergyController,
 } from './encounter.controller.js';
+import { TenantModule } from '../tenant/tenant.module.js';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import {
       Condition,
       Allergy,
     ]),
+    TenantModule,
   ],
   controllers: [EncounterController, ConditionController, AllergyController],
   providers: [EncounterService],
