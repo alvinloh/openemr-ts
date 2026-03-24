@@ -7,6 +7,8 @@ import { AppModule } from './app.module.js';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter.js';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor.js';
 import { AuditService } from './audit/audit.service.js';
+import { MeteringInterceptor } from './metering/interceptors/metering.interceptor.js';
+import { MeteringService } from './metering/metering.service.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -31,9 +33,13 @@ async function bootstrap() {
   // Global filters
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  // Global audit interceptor
+  // Global interceptors
   const auditService = app.get(AuditService);
-  app.useGlobalInterceptors(new AuditInterceptor(auditService));
+  const meteringService = app.get(MeteringService);
+  app.useGlobalInterceptors(
+    new AuditInterceptor(auditService),
+    new MeteringInterceptor(meteringService),
+  );
 
   // Swagger
   const config = new DocumentBuilder()
