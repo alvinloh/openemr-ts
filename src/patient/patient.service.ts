@@ -28,8 +28,13 @@ export class PatientService {
 
   async findAll(
     query: PatientQueryDto,
+    tenantId?: number,
   ): Promise<{ data: Patient[]; total: number }> {
     const qb = this.patientRepo.createQueryBuilder('p');
+
+    if (tenantId) {
+      qb.andWhere('p.tenantId = :tenantId', { tenantId });
+    }
 
     if (query.search) {
       const terms = query.search.trim().split(/\s+/);
