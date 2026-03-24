@@ -6,6 +6,7 @@ import {
   Body,
   Param,
   Query,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -26,15 +27,17 @@ export class PatientController {
 
   @Get()
   @ApiOperation({ summary: 'Search/list patients' })
-  async findAll(@Query() query: PatientQueryDto) {
-    const { data, total } = await this.patientService.findAll(query);
+  async findAll(@Query() query: PatientQueryDto, @Request() req: any) {
+    const tenantId = req.tenant?.id;
+    const { data, total } = await this.patientService.findAll(query, tenantId);
     return ApiResponse.paginated(data, total, query.page, query.limit);
   }
 
   @Post()
   @ApiOperation({ summary: 'Create a new patient' })
-  async create(@Body() dto: CreatePatientDto) {
-    const patient = await this.patientService.create(dto);
+  async create(@Body() dto: CreatePatientDto, @Request() req: any) {
+    const tenantId = req.tenant?.id;
+    const patient = await this.patientService.create({ ...dto, tenantId });
     return ApiResponse.ok(patient);
   }
 
