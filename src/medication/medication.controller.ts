@@ -9,7 +9,7 @@ import {
   UseGuards,
   ParseIntPipe,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { JwtOrApiKeyGuard } from '../common/guards/jwt-or-apikey.guard.js';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { MedicationService } from './medication.service.js';
 import { CreateMedicationDto } from './dto/create-medication.dto.js';
@@ -19,7 +19,7 @@ import { ApiResponse } from '../common/dto/api-response.dto.js';
 
 @ApiTags('Medication')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(JwtOrApiKeyGuard)
 @Controller('api/patient/:pid/medication')
 export class MedicationController {
   constructor(private readonly medicationService: MedicationService) {}

@@ -14,6 +14,7 @@ import { MedicationModule } from '../medication/medication.module.js';
 import { LabModule } from '../lab/lab.module.js';
 import { SchedulingModule } from '../scheduling/scheduling.module.js';
 import { DocumentModule } from '../document/document.module.js';
+import { TenantModule } from '../tenant/tenant.module.js';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { DocumentModule } from '../document/document.module.js';
     LabModule,
     SchedulingModule,
     DocumentModule,
+    TenantModule,
   ],
   controllers: [FhirController],
   providers: [

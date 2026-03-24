@@ -28,6 +28,7 @@ export class SimulationController {
       scenario: dto.scenario,
       steps: dto.steps as SimulationStep[],
       patientCount: dto.patientCount || 1,
+      patientUuid: dto.patientUuid,
       labPanels: dto.labPanels,
       pacing: dto.pacing || 'instant',
       tenantId: req.tenant.id,

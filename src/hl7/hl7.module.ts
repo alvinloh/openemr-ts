@@ -12,9 +12,10 @@ import { MdmGeneratorService } from './generators/mdm-generator.service.js';
 import { LabModule } from '../lab/lab.module.js';
 import { PatientModule } from '../patient/patient.module.js';
 import { LabProvider } from '../lab/entities/lab-provider.entity.js';
+import { TenantModule } from '../tenant/tenant.module.js';
 
 @Module({
-  imports: [LabModule, PatientModule, TypeOrmModule.forFeature([LabProvider])],
+  imports: [LabModule, PatientModule, TypeOrmModule.forFeature([LabProvider]), TenantModule],
   controllers: [Hl7Controller],
   providers: [
     Hl7ParserService,

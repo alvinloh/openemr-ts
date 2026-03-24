@@ -9,7 +9,7 @@ import {
   UseGuards,
   ParseIntPipe,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { JwtOrApiKeyGuard } from '../common/guards/jwt-or-apikey.guard.js';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { EncounterService } from './encounter.service.js';
 import { CreateEncounterDto } from './dto/create-encounter.dto.js';
@@ -22,7 +22,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 
 @ApiTags('Encounter')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(JwtOrApiKeyGuard)
 @Controller('api/patient/:pid/encounter')
 export class EncounterController {
   constructor(private readonly encounterService: EncounterService) {}
@@ -134,7 +134,7 @@ export class EncounterController {
 
 @ApiTags('Condition')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(JwtOrApiKeyGuard)
 @Controller('api/patient/:pid/condition')
 export class ConditionController {
   constructor(private readonly encounterService: EncounterService) {}
@@ -155,7 +155,7 @@ export class ConditionController {
 
 @ApiTags('Allergy')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(JwtOrApiKeyGuard)
 @Controller('api/patient/:pid/allergy')
 export class AllergyController {
   constructor(private readonly encounterService: EncounterService) {}

@@ -10,7 +10,7 @@ import {
   Res,
   ParseIntPipe,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { JwtOrApiKeyGuard } from '../common/guards/jwt-or-apikey.guard.js';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { Response } from 'express';
@@ -22,7 +22,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 
 @ApiTags('Document')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(JwtOrApiKeyGuard)
 @Controller('api/patient/:pid/document')
 export class DocumentController {
   constructor(private readonly documentService: DocumentService) {}

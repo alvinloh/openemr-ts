@@ -7,6 +7,7 @@ import { LabResult } from './entities/lab-result.entity.js';
 import { LabProvider } from './entities/lab-provider.entity.js';
 import { LabService } from './lab.service.js';
 import { LabController } from './lab.controller.js';
+import { TenantModule } from '../tenant/tenant.module.js';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { LabController } from './lab.controller.js';
       LabResult,
       LabProvider,
     ]),
+    TenantModule,
   ],
   controllers: [LabController],
   providers: [LabService],

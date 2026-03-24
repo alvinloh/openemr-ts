@@ -8,7 +8,7 @@ import {
   HttpCode,
   Logger,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { JwtOrApiKeyGuard } from '../common/guards/jwt-or-apikey.guard.js';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Hl7ParserService } from './hl7-parser.service.js';
 import { Hl7GeneratorService } from './hl7-generator.service.js';
@@ -21,7 +21,7 @@ import { ApiResponse } from '../common/dto/api-response.dto.js';
 
 @ApiTags('HL7')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(JwtOrApiKeyGuard)
 @Controller('api/hl7')
 export class Hl7Controller {
   private readonly logger = new Logger(Hl7Controller.name);

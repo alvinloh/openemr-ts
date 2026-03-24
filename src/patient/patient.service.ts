@@ -32,10 +32,19 @@ export class PatientService {
     const qb = this.patientRepo.createQueryBuilder('p');
 
     if (query.search) {
-      qb.andWhere(
-        '(p.firstName LIKE :search OR p.lastName LIKE :search OR p.mrn LIKE :search)',
-        { search: `%${query.search}%` },
-      );
+      const terms = query.search.trim().split(/\s+/);
+      if (terms.length >= 2) {
+        // "Ronald Hall" → match firstName=Ronald + lastName=Hall or vice versa
+        qb.andWhere(
+          '((p.firstName LIKE :term1 AND p.lastName LIKE :term2) OR (p.firstName LIKE :term2 AND p.lastName LIKE :term1) OR p.mrn LIKE :full)',
+          { term1: `%${terms[0]}%`, term2: `%${terms[1]}%`, full: `%${query.search}%` },
+        );
+      } else {
+        qb.andWhere(
+          '(p.firstName LIKE :search OR p.lastName LIKE :search OR p.mrn LIKE :search)',
+          { search: `%${query.search}%` },
+        );
+      }
     }
     if (query.firstName) {
       qb.andWhere('p.firstName LIKE :firstName', {

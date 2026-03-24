@@ -22,6 +22,7 @@ export interface SimulationRequest {
   scenario?: string;
   steps?: SimulationStep[];
   patientCount: number;
+  patientUuid?: string;
   labPanels?: string[];
   pacing?: 'instant' | 'realtime';
   tenantId?: number;
@@ -103,29 +104,66 @@ export class SimulationService {
     }
 
     const scenario = request.scenario || 'custom';
-    const patientCount = Math.min(request.patientCount, 100); // Cap at 100
+    const useExistingPatient = !!request.patientUuid;
+    const patientCount = useExistingPatient ? 1 : Math.min(request.patientCount, 100);
 
     this.logger.log(
-      `Simulation ${simulationId}: ${scenario} with ${patientCount} patients, steps: ${steps.join(' → ')}`,
+      `Simulation ${simulationId}: ${scenario} with ${useExistingPatient ? 'existing patient ' + request.patientUuid : patientCount + ' patients'}, steps: ${steps.join(' → ')}`,
     );
 
-    // Generate patient data
-    const generatedPatients = this.patientGenerator.generateBatch(patientCount, {
-      ageMin: request.ageMin,
-      ageMax: request.ageMax,
-    });
+    // If targeting an existing patient, skip 'register' step
+    if (useExistingPatient) {
+      steps = steps.filter((s) => s !== 'register');
+    }
+
+    // Build patient contexts
+    const contexts: WorkflowContext[] = [];
+
+    if (useExistingPatient) {
+      const existingPatient = await this.patientService.findByUuid(request.patientUuid!);
+      contexts.push({
+        genPatient: {
+          mrn: existingPatient.mrn,
+          firstName: existingPatient.firstName,
+          lastName: existingPatient.lastName,
+          dateOfBirth: existingPatient.dateOfBirth,
+          sex: existingPatient.sex,
+          street: existingPatient.street || '',
+          city: existingPatient.city || '',
+          state: existingPatient.state || '',
+          postalCode: existingPatient.postalCode || '',
+          countryCode: existingPatient.countryCode || 'US',
+          phoneCell: existingPatient.phoneCell || '',
+          email: existingPatient.email || '',
+          race: existingPatient.race || '',
+          ethnicity: existingPatient.ethnicity || '',
+          language: existingPatient.language || 'en',
+          maritalStatus: existingPatient.maritalStatus || '',
+        },
+        patient: existingPatient,
+        tenantId: request.tenantId,
+        labPanels: request.labPanels,
+      });
+    } else {
+      const generatedPatients = this.patientGenerator.generateBatch(patientCount, {
+        ageMin: request.ageMin,
+        ageMax: request.ageMax,
+      });
+      for (const genPatient of generatedPatients) {
+        contexts.push({
+          genPatient,
+          tenantId: request.tenantId,
+          labPanels: request.labPanels,
+        });
+      }
+    }
 
     const allStepResults: StepResult[] = [];
     let hl7Sent = 0;
     let hl7Generated = 0;
 
     // Process each patient through the workflow
-    for (const genPatient of generatedPatients) {
-      const context: WorkflowContext = {
-        genPatient,
-        tenantId: request.tenantId,
-        labPanels: request.labPanels,
-      };
+    for (const context of contexts) {
 
       for (const step of steps) {
         const stepStart = Date.now();
@@ -142,11 +180,11 @@ export class SimulationService {
             await this.delay(500 + Math.random() * 1500);
           }
         } catch (err: any) {
-          this.logger.error(`Step "${step}" failed for ${genPatient.mrn}: ${err.message}`);
+          this.logger.error(`Step "${step}" failed for ${context.genPatient.mrn}: ${err.message}`);
           allStepResults.push({
             step,
-            patientMrn: genPatient.mrn,
-            patientName: `${genPatient.lastName}, ${genPatient.firstName}`,
+            patientMrn: context.genPatient.mrn,
+            patientName: `${context.genPatient.lastName}, ${context.genPatient.firstName}`,
             entityType: 'error',
             hl7MessageType: 'N/A',
             hl7Sent: false,
@@ -227,9 +265,10 @@ export class SimulationService {
 
     // Create encounter
     const encounter = await this.encounterService.createEncounter(patient.id, {
-      date: new Date().toISOString().split('T')[0],
+      encounterDate: new Date().toISOString(),
       reasonForVisit: this.pick(DIAGNOSIS_CODES).description,
-      type: 'office_visit',
+      classCode: 'AMB',
+      providerId: 1,
     } as any);
     ctx.encounterId = encounter.id;
     ctx.encounterUuid = encounter.uuid;
@@ -392,12 +431,16 @@ export class SimulationService {
     followupDate.setDate(followupDate.getDate() + 7);
     followupDate.setHours(9 + Math.floor(Math.random() * 8), 0, 0, 0);
 
+    const endTime = new Date(followupDate.getTime() + 30 * 60000);
     const appointment = await this.schedulingService.create({
       patientId: patient.id,
+      providerId: 1,
       startTime: followupDate,
+      endTime,
       duration: 30,
       status: 'scheduled',
-      reason: 'Follow-up visit',
+      title: 'Follow-up visit',
+      notes: 'Scheduled by simulation',
       tenantId: ctx.tenantId,
     } as any);
 
