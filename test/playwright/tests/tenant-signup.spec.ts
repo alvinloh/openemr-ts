@@ -35,6 +35,35 @@ test.describe('Tenant Signup', () => {
     await expect(page.locator('#signupSuccess')).toContainText('oet_');
   });
 
+  test('should show error on duplicate email signup', async ({ page, request }) => {
+    const ts = Date.now();
+    const email = `dup-test-${ts}@playwright.com`;
+
+    // Create account via API first
+    await request.post('/api/signup', {
+      data: {
+        organizationName: `Dup Test ${ts}`,
+        email,
+        password: 'password123',
+        firstName: 'Dup',
+        lastName: 'Test',
+      },
+    });
+
+    // Try same email in UI
+    await page.goto('/');
+    await page.locator('#loginScreen a:has-text("Sign up")').click();
+    await page.fill('#signupOrg', `Dup Test Again ${ts}`);
+    await page.fill('#signupFirstName', 'Dup');
+    await page.fill('#signupLastName', 'Test');
+    await page.fill('#signupEmail', email);
+    await page.fill('#signupPassword', 'password123');
+    await page.click('#signupForm button[type="submit"]');
+
+    await expect(page.locator('#signupError')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#signupError')).toContainText('already exists');
+  });
+
   test('should navigate back to login from signup', async ({ page }) => {
     await page.goto('/');
     await page.locator('#loginScreen a:has-text("Sign up")').click();

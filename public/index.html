@@ -1093,7 +1093,9 @@ Authorization: Bearer &lt;token&gt;</pre>
           $('#signupForm').hide();
         },
         error: function(xhr) {
-          var msg = xhr.responseJSON ? xhr.responseJSON.message : 'Signup failed';
+          var data = xhr.responseJSON || {};
+          var msg = data.message || 'Signup failed';
+          if (Array.isArray(msg)) msg = msg.join(', ');
           $('#signupError').removeClass('d-none').text(msg);
         }
       });
