@@ -18,19 +18,18 @@ test.describe('Tenant Signup', () => {
   });
 
   test('should create a tenant account via signup form', async ({ page }) => {
-    const uniqueEmail = `test-${Date.now()}@playwright.com`;
+    const ts = Date.now();
 
     await page.goto('/');
-    await page.click('text=Sign up');
+    await page.locator('#loginScreen a:has-text("Sign up")').click();
 
-    await page.fill('#signupOrg', 'Playwright Clinic');
+    await page.fill('#signupOrg', `Playwright Clinic ${ts}`);
     await page.fill('#signupFirstName', 'Test');
     await page.fill('#signupLastName', 'User');
-    await page.fill('#signupEmail', uniqueEmail);
+    await page.fill('#signupEmail', `pw-test-${ts}@playwright.com`);
     await page.fill('#signupPassword', 'password123');
     await page.click('#signupForm button[type="submit"]');
 
-    // Should show success with API key
     await expect(page.locator('#signupSuccess')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('#signupSuccess')).toContainText('Account created');
     await expect(page.locator('#signupSuccess')).toContainText('oet_');

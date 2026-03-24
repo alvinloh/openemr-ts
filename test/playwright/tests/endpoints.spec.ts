@@ -1,24 +1,26 @@
 import { test, expect } from '@playwright/test';
 
 let apiKey: string;
+let endpointUuid: string;
 
-test.beforeAll(async ({ request }) => {
-  const uniqueEmail = `ep-test-${Date.now()}@playwright.com`;
-  const response = await request.post('/api/signup', {
-    data: {
-      organizationName: 'Endpoint Test Clinic',
-      email: uniqueEmail,
-      password: 'password123',
-      firstName: 'EP',
-      lastName: 'Tester',
-    },
-  });
-  const body = await response.json();
-  apiKey = body.apiKey;
-});
+test.describe.configure({ mode: 'serial' });
 
 test.describe('Endpoint Registration API', () => {
-  let endpointUuid: string;
+  test('setup: create tenant', async ({ request }) => {
+    const ts = Date.now();
+    const response = await request.post('/api/signup', {
+      data: {
+        organizationName: `Endpoint Test ${ts}`,
+        email: `ep-test-${ts}@playwright.com`,
+        password: 'password123',
+        firstName: 'EP',
+        lastName: 'Tester',
+      },
+    });
+    expect(response.ok()).toBeTruthy();
+    const body = await response.json();
+    apiKey = body.apiKey;
+  });
 
   test('should register an HTTP endpoint', async ({ request }) => {
     const response = await request.post('/api/tenant/endpoints', {
@@ -77,7 +79,6 @@ test.describe('Endpoint Registration API', () => {
     });
     expect(response.status()).toBe(204);
 
-    // Verify deleted
     const listRes = await request.get('/api/tenant/endpoints', {
       headers: { 'x-api-key': apiKey },
     });
@@ -86,13 +87,11 @@ test.describe('Endpoint Registration API', () => {
   });
 
   test('should enforce endpoint limit on free plan', async ({ request }) => {
-    // Free plan allows 1 endpoint
     await request.post('/api/tenant/endpoints', {
       headers: { 'x-api-key': apiKey },
       data: { name: 'ep-1', transport: 'HTTP', url: 'https://example.com/1' },
     });
 
-    // Second should fail
     const response = await request.post('/api/tenant/endpoints', {
       headers: { 'x-api-key': apiKey },
       data: { name: 'ep-2', transport: 'HTTP', url: 'https://example.com/2' },
